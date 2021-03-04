@@ -12,6 +12,8 @@ MODULE material_class
 !!  Revisions:                                                               !!
 !!    05/02/2021: Updated how material was read in. Added material ID        !!
 !!    16/02/2021: Added material macroscopic fission cross section           !!
+!!    03/03/2021: Added macroscopic scatter cross section array, changed     !!
+!!      source_flux, absorption, and fission to arrays.                      !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -26,9 +28,10 @@ character(80) :: id = 'default'! Material ID
 real(dp) :: left_albedo ! Left albedo value
 real(dp) :: right_albedo ! Right albedo value
 real(dp) :: surface_source ! Surface flux
-real(dp) :: source_flux ! Source flux
-real(dp) :: absorption ! Macroscopic absorption cross section
-real(dp) :: fission ! Macroscopic fission cross section
+real(dp),allocatable,dimension(:) :: source_flux ! Source flux G array
+real(dp),allocatable,dimension(:) :: absorption ! Macroscopic absorption cross section G array
+real(dp),allocatable,dimension(:) :: fission ! Macroscopic fission cross section G array
+real(dp),allocatable,dimension(:,:) :: scatter ! Macroscopic scatter cross section GxG matrix
 
 CONTAINS
 ! Bound procedures
@@ -44,6 +47,8 @@ PROCEDURE,PUBLIC :: get_absorption => get_absorption_fn ! Returns sigma_a
 procedure,public :: set_id => set_id_sub ! Allows name to be set
 procedure,public :: get_id => get_id_fn ! Returns ID
 procedure,public :: get_fission => get_fission_fn ! Returns Nu-Sigma_f
+procedure,public :: get_removal => get_removal_fn ! Returns (and calculates) the removal cross section
+procedure,public :: get_scatter => get_scatter_fn ! Returns scatter matrix
 END TYPE material
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
@@ -58,10 +63,12 @@ private :: get_absorption_fn
 private :: set_id_sub
 private :: get_id_fn
 private :: get_fission_fn
+private :: get_removal_fn
+private :: get_scatter_fn
 ! Now add methods
 CONTAINS
 SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
-   right_albedo, surface_source, source_flux, absorption, fission)
+   right_albedo, surface_source, source_flux, absorption, fission, scatter)
   !
   ! Subroutine to set the variables
   !
@@ -69,7 +76,8 @@ SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
   ! Declare calling arguments
   CLASS(material) :: this ! Line object
   character(len=*),INTENT(IN) :: left_boundary, right_boundary
-  real(dp),INTENT(IN) :: left_albedo, right_albedo, surface_source, source_flux, absorption, fission
+  real(dp),INTENT(IN), dimension(:) :: left_albedo, right_albedo, surface_source, source_flux, absorption, fission
+  real(dp),INTENT(IN), dimension(:,:) :: scatter
   ! Save data
   this%left_boundary = left_boundary
   this%right_boundary = right_boundary
@@ -79,6 +87,7 @@ SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
   this%source_flux = source_flux
   this%absorption = absorption
   this%fission = fission
+  this%scatter = scatter
 END SUBROUTINE set_variables_sub
 SUBROUTINE read_variables_sub(this, filename)
   !
@@ -92,26 +101,44 @@ SUBROUTINE read_variables_sub(this, filename)
   integer :: lineskip ! skips desired number of lines.
   character(80) :: line ! Used to test the line.
   real(dp) :: start, length, left_albedo, right_albedo
-  real(dp) :: absorption, source_flux, surface_source, fission
+  real(dp), allocatable, dimension(:) :: absorption, source_flux, fission
+  real(dp), allocatable, dimension(:,:) :: scatter
+  real(dp) :: surface_source
   character(80) :: left_boundary, right_boundary
-  integer steps, geomtype
+  integer steps, geomtype, groups
   open(10,file=filename,iostat=status)
   ! Read through file.
   do
   	read(10,'(A)',iostat=status) line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
     ! print *, line
   	if (status /= 0) exit ! exit if end of file (or fail).
+    ! Check the number of groups
+    if (line == 'Groups') then
+      read(10,*,iostat=status) line,groups
+      ! Allocate the variables to appropriate size.
+      allocate(absorption(1:groups))
+      allocate(source_flux(1:groups))
+      allocate(fission(1:groups))
+      allocate(scatter(1:groups,1:groups))
+    end if
     ! Check if the material has a defined name
     if (this%id == 'default') then ! If no defined name
       if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
-    		read(10,*,iostat=status) line,absorption,source_flux,fission
-        this%absorption = absorption
-        this%source_flux = source_flux
-        this%fission = fission
+        do lineskip = 1,groups
+      		read(10,*,iostat=status) line,absorption(lineskip),source_flux(lineskip),fission(lineskip)
+        end do
       ! if (line == 'macroscopic absorption cross section (sigma_a), source flux (S)') then
       !   read(10,*,iostat=status) absorption,source_flux
       !   this%absorption = absorption
       !   this%source_flux = source_flux
+      else if (line == '------------SCATTER CROSS SECTIONS------------------') then
+        do lineskip = 1,1 ! Skips line.
+    			read(10,*)
+    	  end do
+        do lineskip = 1,groups
+          ! Read in columns for "lineskip"th row of the matrix
+          read(10,*,iostat=status) scatter(lineskip,:)
+        end do
       else if (line == 'Boundaries-') then
     		read(10,*,iostat=status) line,left_boundary,right_boundary
     		read(10,*,iostat=status) line,left_albedo,right_albedo
@@ -131,21 +158,31 @@ SUBROUTINE read_variables_sub(this, filename)
           read(10,'(A)',iostat=status) line
           if (index(line,trim(this%id))/=0) then ! If the line contains the name we are looking for
             backspace (unit = 10) ! Goes back to start of line
-            read(10,*,iostat=status) line,absorption,source_flux,fission
-            this%absorption = absorption
-            this%source_flux = source_flux
-            this%fission = fission
+            do lineskip = 1,groups
+              read(10,*,iostat=status) line,absorption(lineskip),source_flux(lineskip),fission(lineskip)
+              ! If any of the lines has the wrong name, implies wrong number of data points
+              if(line/=trim(this%id)) stop 'Number of groups does not match data in input deck'
+            end do
             exit
           end if
-          if (index(line,'---')/=0) THEN
-            print *, 'No match for material name in input deck'
-            exit ! Exit the do loop when end of section reached.
-          end if
+          if (index(line,'---')/=0) stop 'No match for material name in input deck'
         end do
       ! if (line == 'macroscopic absorption cross section (sigma_a), source flux (S)') then
       !   read(10,*,iostat=status) absorption,source_flux
       !   this%absorption = absorption
       !   this%source_flux = source_flux
+      else if (line == '------------SCATTER CROSS SECTIONS------------------') then
+        do ! Loop until the name of the line is found, or the end of the section is reached.
+          read(10,'(A)',iostat=status) line
+          if (index(line,trim(this%id))/=0) then ! If the line contains the name we are looking for
+            do lineskip = 1,groups
+              ! Read in columns for "lineskip"th row of the matrix
+              read(10,*,iostat=status) scatter(lineskip,:)
+            end do
+            exit
+          end if
+          if (index(line,'---')/=0) stop 'No match for material name in input deck'
+        end do
       else if (line == 'Boundaries-') then
     		read(10,*,iostat=status) line,left_boundary,right_boundary
     		read(10,*,iostat=status) line,left_albedo,right_albedo
@@ -161,6 +198,10 @@ SUBROUTINE read_variables_sub(this, filename)
       end if
     end if
   end do
+  this%absorption = absorption
+  this%source_flux = source_flux
+  this%fission = fission
+  this%scatter = scatter
   close(10)
 END SUBROUTINE read_variables_sub
 character(80) FUNCTION get_left_boundary_fn(this)
@@ -208,23 +249,25 @@ real(dp) FUNCTION get_surface_source_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_surface_source_fn = this%surface_source
 END FUNCTION get_surface_source_fn
-real(dp) FUNCTION get_source_flux_fn(this)
+FUNCTION get_source_flux_fn(this) result(value)
   !
   ! Function to return right BC
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  get_source_flux_fn = this%source_flux
+  real(dp), dimension(size(source_flux)) :: value
+  value = this%source_flux
 END FUNCTION get_source_flux_fn
-real(dp) FUNCTION get_absorption_fn(this)
+FUNCTION get_absorption_fn(this) result(value)
   !
   ! Function to return right BC
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  get_absorption_fn = this%absorption
+  real(dp), dimension(size(absorption)) :: value
+  value = this%absorption
 END FUNCTION get_absorption_fn
 subroutine set_id_sub (this, id)
   !
@@ -245,13 +288,44 @@ character(80) FUNCTION get_id_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_id_fn = this%id
 END FUNCTION get_id_fn
-real(dp) FUNCTION get_fission_fn(this)
+FUNCTION get_fission_fn(this) result(value)
   !
   ! Function to return nu-sigma_f
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  get_fission_fn = this%fission
+  real(dp), dimension(size(fission)) :: value
+  value = this%fission
 END FUNCTION get_fission_fn
+function get_removal_fn(this,group) result(value)
+  !
+  ! Function to return removal cross section
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Line object
+  integer,intent(in) :: group
+  real(dp), dimension(size(fission)) :: value
+  integer :: i
+  value = 0
+  do i = 1, size(fission)
+    ! Ignore in-group scattering
+    if (i/=group) then
+      ! Account for all scatterings out of the group
+      value = value + this%scatter(group,i)
+    end if
+  end do
+  value = value + this%absorption(group)
+end function get_removal_fn
+FUNCTION get_scatter_fn(this) result(value)
+  !
+  ! Function to return scatter matrix
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Line object
+  real(dp), dimension(size(fission),size(fission)) :: value
+  value = this%scatter
+END FUNCTION get_scatter_fn
 end module material_class
