@@ -1,3 +1,4 @@
+! This is a test
 MODULE material_class
   use precision_set
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
