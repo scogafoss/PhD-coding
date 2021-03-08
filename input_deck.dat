@@ -1,0 +1,68 @@
+Regions
+Total: 1
+Dimension: 1
+Coordinate: rz
+Max_Dims: 100.0 40.0
+Region Number, Linex, Liney, Linez, Material ID
+1 l01 1
+
+------------MATERIAL SPECIFICATION METHOD------------------
+material_by_correlation
+#material_by_value
+
+------------LINE DEFINITIONS------------------
+start, length, steps, ref (lxx), dim (x/r,y,z)
+Lines
+Scheme: box
+Num: 1
+0.0 1 10 l01 1
+
+-----------------------------------------------
+FluxType
+forward
+
+--------------------------------------
+Source Type - (f)ission or (v)olumetric
+f
+
+-------------------------MATERIAL DATA-------------------------
+macroscopic absorption cross section (sigma_a), source flux (S)
+1.0 2.0
+
+---------------------------------------------------------------
+
+-----------------DATA IN CRITERIA SPEC--------
+Boundaries-
+left_right_boundary r a
+left_right_albedo 0.0 0.5
+bottom_top_boundary a a
+bottom_top_albedo 0.0 0.0
+surface_source 3
+
+--------------------------------------
+Geometry - 0: slab, 1: cylindrical, 2: spherical
+geomtype 2
+
+------------DATA IN SOLVER CLASS------
+Nodes
+number_of_iterations 3
+11
+21
+31
+
+-------------------------------------
+Detectors
+Number: 2
+Interpolation: Quadratic
+0.2 0.3
+0.9 0.9
+
+-------------------------------------
+Convergence
+convergence_limit_upper 1e-5
+convergence_limit_lower 1e-5
+max_iterations 100000
+
+-------------------------------------
+Preconditioner
+Cholesky
