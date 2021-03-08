@@ -204,6 +204,7 @@ SUBROUTINE read_variables_sub(this, filename)
   this%source_flux = source_flux
   this%fission = fission
   this%scatter = scatter
+  print *, 'hi'
   close(10)
 END SUBROUTINE read_variables_sub
 character(80) FUNCTION get_left_boundary_fn(this)
