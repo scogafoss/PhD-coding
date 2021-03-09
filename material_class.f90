@@ -76,7 +76,8 @@ SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
   ! Declare calling arguments
   CLASS(material) :: this ! Line object
   character(len=*),INTENT(IN) :: left_boundary, right_boundary
-  real(dp),INTENT(IN), dimension(:) :: left_albedo, right_albedo, surface_source, source_flux, absorption, fission
+  real(dp),INTENT(IN) :: left_albedo, right_albedo, surface_source
+  real(dp),INTENT(IN), dimension(:) :: source_flux, absorption, fission
   real(dp),INTENT(IN), dimension(:,:) :: scatter
   ! Save data
   this%left_boundary = left_boundary
@@ -109,7 +110,7 @@ SUBROUTINE read_variables_sub(this, filename)
   open(10,file=filename,iostat=status)
   ! Read through file.
   do
-  	read(10,'(A)',iostat=status) line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
+    read(10,'(A)',iostat=status) line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
     ! print *, line
   	if (status /= 0) exit ! exit if end of file (or fail).
     ! Check the number of groups
