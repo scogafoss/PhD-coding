@@ -18,6 +18,7 @@ MODULE nuclear_matrix_class
 !!                                                                           !!
 !!  Revisions:                                                               !!
 !!    15/02/2021: Updated to allow use of array of region class objects      !!
+!!    09/03/2021: Changed all instances of get_absorption() to get_removal() !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
