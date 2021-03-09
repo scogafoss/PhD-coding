@@ -101,18 +101,18 @@ SUBROUTINE read_variables_sub(this, filename)
   integer :: status ! Checks if end of file.
   integer :: lineskip ! skips desired number of lines.
   character(80) :: line ! Used to test the line.
-  real(dp) :: start, length, left_albedo, right_albedo
+  real(dp) :: left_albedo, right_albedo
   real(dp), allocatable, dimension(:) :: absorption, source_flux, fission
   real(dp), allocatable, dimension(:,:) :: scatter
   real(dp) :: surface_source
   character(80) :: left_boundary, right_boundary
-  integer steps, geomtype, groups
+  integer groups
   open(10,file=filename,iostat=status)
   ! Read through file.
   do
     read(10,'(A)',iostat=status) line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
     ! print *, line
-  	if (status /= 0) exit ! exit if end of file (or fail).
+    if (status /= 0) exit ! exit if end of file (or fail).
     ! Check the number of groups
     if (line == 'Groups') then
       read(10,*,iostat=status) line,groups
@@ -126,7 +126,7 @@ SUBROUTINE read_variables_sub(this, filename)
     if (this%id == 'default') then ! If no defined name
       if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
         do lineskip = 1,groups
-      		read(10,*,iostat=status) line,absorption(lineskip),source_flux(lineskip),fission(lineskip)
+          read(10,*,iostat=status) line,absorption(lineskip),source_flux(lineskip),fission(lineskip)
         end do
       ! if (line == 'macroscopic absorption cross section (sigma_a), source flux (S)') then
       !   read(10,*,iostat=status) absorption,source_flux
@@ -134,28 +134,28 @@ SUBROUTINE read_variables_sub(this, filename)
       !   this%source_flux = source_flux
       else if (line == '------------SCATTER CROSS SECTIONS------------------') then
         do lineskip = 1,1 ! Skips line.
-    			read(10,*)
-    	  end do
+          read(10,*)
+        end do
         do lineskip = 1,groups
           ! Read in columns for "lineskip"th row of the matrix
           read(10,*,iostat=status) scatter(lineskip,:)
         end do
       else if (line == 'Boundaries-') then
-    		read(10,*,iostat=status) line,left_boundary,right_boundary
-    		read(10,*,iostat=status) line,left_albedo,right_albedo
-    		do lineskip = 1,2 ! Skips two lines.
-    			read(10,*)
-    	  end do
-    		read(10,*,iostat=status) line,surface_source
+        read(10,*,iostat=status) line,left_boundary,right_boundary
+        read(10,*,iostat=status) line,left_albedo,right_albedo
+        do lineskip = 1,2 ! Skips two lines.
+          read(10,*)
+        end do
+        read(10,*,iostat=status) line,surface_source
         this%left_boundary = left_boundary
         this%right_boundary = right_boundary
         this%left_albedo = left_albedo
         this%right_albedo = right_albedo
         this%surface_source = surface_source
-    	end if
+      end if
     ELSE ! If there is a defined name
       if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
-    		do ! Loop until the name of the line is found, or the end of the section is reached.
+        do ! Loop until the name of the line is found, or the end of the section is reached.
           read(10,'(A)',iostat=status) line
           if (index(line,trim(this%id))/=0) then ! If the line contains the name we are looking for
             backspace (unit = 10) ! Goes back to start of line
@@ -185,12 +185,12 @@ SUBROUTINE read_variables_sub(this, filename)
           if (index(line,'---')/=0) stop 'No match for material name in input deck'
         end do
       else if (line == 'Boundaries-') then
-    		read(10,*,iostat=status) line,left_boundary,right_boundary
-    		read(10,*,iostat=status) line,left_albedo,right_albedo
-    		do lineskip = 1,2 ! Skips two lines.
-    			read(10,*)
-    	  end do
-    		read(10,*,iostat=status) line,surface_source
+        read(10,*,iostat=status) line,left_boundary,right_boundary
+        read(10,*,iostat=status) line,left_albedo,right_albedo
+        do lineskip = 1,2 ! Skips two lines.
+          read(10,*)
+        end do
+        read(10,*,iostat=status) line,surface_source
         this%left_boundary = left_boundary
         this%right_boundary = right_boundary
         this%left_albedo = left_albedo
@@ -257,7 +257,7 @@ FUNCTION get_source_flux_fn(this) result(value)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(source_flux)) :: value
+  real(dp), dimension(size(this%source_flux)) :: value
   value = this%source_flux
 END FUNCTION get_source_flux_fn
 FUNCTION get_absorption_fn(this) result(value)
@@ -267,7 +267,7 @@ FUNCTION get_absorption_fn(this) result(value)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(absorption)) :: value
+  real(dp), dimension(size(this%absorption)) :: value
   value = this%absorption
 END FUNCTION get_absorption_fn
 subroutine set_id_sub (this, id)
@@ -296,7 +296,7 @@ FUNCTION get_fission_fn(this) result(value)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(fission)) :: value
+  real(dp), dimension(size(this%fission)) :: value
   value = this%fission
 END FUNCTION get_fission_fn
 function get_removal_fn(this,group) result(value)
@@ -307,10 +307,10 @@ function get_removal_fn(this,group) result(value)
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
   integer,intent(in) :: group
-  real(dp), dimension(size(fission)) :: value
+  real(dp), dimension(size(this%fission)) :: value
   integer :: i
   value = 0
-  do i = 1, size(fission)
+  do i = 1, size(this%fission)
     ! Ignore in-group scattering
     if (i/=group) then
       ! Account for all scatterings out of the group
@@ -326,7 +326,7 @@ FUNCTION get_scatter_fn(this) result(value)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(fission),size(fission)) :: value
+  real(dp), dimension(size(this%fission),size(this%fission)) :: value
   value = this%scatter
 END FUNCTION get_scatter_fn
 end module material_class
