@@ -80,7 +80,7 @@ SUBROUTINE discretise_sub(this, lines, materials)
   allocate (this%b(1:size(this%a)))
   allocate (this%c(1:size(this%a)))
   delta = lines%get_length()/lines%get_steps()
-  D = 1 / (3 * materials%get_absorption())
+  D = 1 / (3 * materials%get_removal())
   DO i = 1 , SIZE(this%b)
     i_double=i
   !------------------------------------------------------------------------------
@@ -91,20 +91,20 @@ SUBROUTINE discretise_sub(this, lines, materials)
     ELSE IF ( i == 1 .and. materials%get_left_boundary() == 'v') THEN ! Vacuum left boundary
       this%a(1) = 0 ! set to zero even though not present
       ! this%b(1) = materials%get_absorption()+(2*D/(delta**2))+(D/delta) ! a0,0 - (delta/D) a0,-1
-      this%b(1) = materials%get_absorption()+(2*D/(delta**2))+(1/delta) ! a0,0 - (delta/D) a0,-1
+      this%b(1) = materials%get_removal()+(2*D/(delta**2))+(1/delta) ! a0,0 - (delta/D) a0,-1
       this%c(1) = -2*D/(delta**2) !a0,1 + a0,-1
     else if (i == 1 .and. materials%get_left_boundary() == 'r') then ! Reflective left boundary
       this%a(1) = 0 ! set to zero, even though technically not present
-      this%b(1) = (materials%get_absorption()+2*(D)/(delta**2)) ! a0,0
+      this%b(1) = (materials%get_removal()+2*(D)/(delta**2)) ! a0,0
       this%c(1) = -2 * D / (delta**2) ! a0,1 + a0,-1
     else if (i ==1 .and. materials%get_left_boundary() == 's') then ! Surface left boundary
       print *, 'Have you adjusted source flux?'
       this%a(1) = 0
-      this%b(1) = materials%get_absorption()+(2*D)/(delta**2)+(1/delta) !  a0,0 - (delta/D) a0,-1 note: -1/delta = delta/D * -0.5*(D+D)/delta^2
+      this%b(1) = materials%get_removal()+(2*D)/(delta**2)+(1/delta) !  a0,0 - (delta/D) a0,-1 note: -1/delta = delta/D * -0.5*(D+D)/delta^2
       this%c(1) = ((-2*D)/(delta**2)) !a0,1 + a0,-1
     else if (i ==1 .and. materials%get_left_boundary() == 'a') then ! Albedo left boundary
       this%a(1) = 0
-      this%b(1) = materials%get_absorption()+((2*D)/(delta**2)) - &
+      this%b(1) = materials%get_removal()+((2*D)/(delta**2)) - &
       ((1/delta)*(materials%get_left_albedo()-1)/(materials%get_left_albedo()+1)) ! aii + aii-1(delta/D)(alpha-1)/(alpha+1) note: -1/delta = delta/D * -0.5*(D+D)/delta^2
       this%c(1) = ((-2*D)/(delta**2)) ! aii+1 + aii-1
   ELSE IF (i == SIZE(this%b) .and. materials%get_right_boundary() == 'z') THEN ! Zero flux right boundary
@@ -115,23 +115,23 @@ SUBROUTINE discretise_sub(this, lines, materials)
       this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII-1 + aII+1
       ! this%b(i) = materials%get_absorption()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ! ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())-(1/D)*((1-(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII - delta/D aII+1
-      this%b(i) = materials%get_absorption()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
+      this%b(i) = materials%get_removal()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())+(1/delta)*((1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII - delta/D aII+1
       this%c(i) = 0 ! set to zero, even though not present
     else if (i == SIZE(this%b) .and. materials%get_right_boundary() == 'r') then ! Reflective right boundary
       this%a(i) = -2 * D / (delta**2) ! a0,1 + a0,-1
-      this%b(i) = materials%get_absorption()+(((D)/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
+      this%b(i) = materials%get_removal()+(((D)/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
        ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())! a0,0
       this%c(i) = 0 ! set to zero, even though technically not present
     else if (i == SIZE(this%b) .and. materials%get_right_boundary() == 's') then ! Surface right boundary
       print *, 'Have you adjusted source flux?'
       this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII-1 + aII+1
-      this%b(i) = materials%get_absorption()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
+      this%b(i) = materials%get_removal()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())-(1/D)*((1-(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII - delta/D aII+1
       this%c(i) = 0 ! set to zero, even though not present
     else if (i == SIZE(this%b) .and. materials%get_right_boundary() == 'a') then ! Albedo right boundary
       this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII-1 + aII+1
-      this%b(i) = materials%get_absorption()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
+      this%b(i) = materials%get_removal()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) - &
       ((1/delta)*((1+(1/(2*(i_double-1))))**lines%get_geomtype())*(materials%get_right_albedo()-1)/(materials%get_right_albedo()+1)) ! aII - (delta/D)(alpha-1)/(alpha+1) aII+1
 
@@ -139,7 +139,7 @@ SUBROUTINE discretise_sub(this, lines, materials)
   !------------------------------------------------------------------------------
     ELSE
       this%a(i) = (-D / (delta**2))*((1-(1/(2*(i_double-1))))**lines%get_geomtype())
-      this%b(i) = materials%get_absorption() + (D/(delta**2))*((1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
+      this%b(i) = materials%get_removal() + (D/(delta**2))*((1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())
       this%c(i) = (-D / (delta**2))*((1+(1/(2*(i_double-1))))**lines%get_geomtype())
     END IF
@@ -192,7 +192,7 @@ SUBROUTINE discretise_regions_sub(this, regions)
   allocate (this%b(1:size(this%a)))
   allocate (this%c(1:size(this%a)))
   delta = regions(1)%get_length()/regions(1)%get_steps()
-  absorption = regions(1)%get_absorption()
+  absorption = regions(1)%get_removal()
   D = 1 / (3 * absorption)
   region_iterator = 1
   DO i = 1 , SIZE(this%b)
@@ -202,7 +202,7 @@ SUBROUTINE discretise_regions_sub(this, regions)
       ! D = ((1/(3*absorption))*delta+(1/(3*(regions(region_iterator+1)%get_absorption()))*(regions(region_iterator+1)%get_length()&
       ! /(regions(region_iterator+1)%get_steps()))))/(delta+(regions(region_iterator+1)%get_length()&
       ! /(regions(region_iterator+1)%get_steps())))
-      absorption = ((absorption*delta)+(regions(region_iterator+1)%get_absorption()*regions(region_iterator+1)%get_length()&
+      absorption = ((absorption*delta)+(regions(region_iterator+1)%get_removal()*regions(region_iterator+1)%get_length()&
       /(regions(region_iterator+1)%get_steps())))/(delta+(regions(region_iterator+1)%get_length()&
       /(regions(region_iterator+1)%get_steps())))
       delta = (delta + (regions(region_iterator+1)%get_length()/(regions(region_iterator+1)%get_steps())))/2
@@ -212,7 +212,7 @@ SUBROUTINE discretise_regions_sub(this, regions)
     if (i==boundary_tracker(region_iterator)+1 .and. i /= size(this%b)) then
       region_iterator=region_iterator+1
       delta = regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
-      absorption = regions(region_iterator)%get_absorption()
+      absorption = regions(region_iterator)%get_removal()
       D = 1 / (3 * absorption)
     end if
   !
@@ -291,15 +291,15 @@ SUBROUTINE discretise_regions_sub(this, regions)
     ! At each boundary need more terms
   else if(i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
       ! ai,i-1
-      this%a(i) = -(((1/(3*regions(region_iterator)%get_absorption()))/(delta*regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))*&
+      this%a(i) = -(((1/(3*regions(region_iterator)%get_removal()))/(delta*regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))*&
       (1-((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
       ! ai,i
-      this%b(i) = absorption + (((1/(3*regions(region_iterator)%get_absorption()))/(delta*regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))*&
+      this%b(i) = absorption + (((1/(3*regions(region_iterator)%get_removal()))/(delta*regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))*&
       (1-((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()) +&
-       (((1/(3*regions(region_iterator+1)%get_absorption()))/(delta*regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))*&
+       (((1/(3*regions(region_iterator+1)%get_removal()))/(delta*regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))*&
       (1+((regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator+1)%get_geomtype())
       ! ai,i+1
-      this%c(i) = -(((1/(3*regions(region_iterator+1)%get_absorption()))/(delta*regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))*&
+      this%c(i) = -(((1/(3*regions(region_iterator+1)%get_removal()))/(delta*regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))*&
       (1+((regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator+1)%get_geomtype())
   !
   !------------------------------------------------------------------------------
