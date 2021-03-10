@@ -12,8 +12,8 @@ MODULE material_class
 !!  Revisions:                                                               !!
 !!    05/02/2021: Updated how material was read in. Added material ID        !!
 !!    16/02/2021: Added material macroscopic fission cross section           !!
-!!    03/03/2021: Added macroscopic scatter cross section array, changed     !!
-!!      source_flux, absorption, and fission to arrays.                      !!
+!!    08/03/2021: Added macroscopic scatter cross section array, changed     !!
+!!      source_flux, absorption, fission probability and fission to arrays.  !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -31,6 +31,7 @@ real(dp) :: surface_source ! Surface flux
 real(dp),allocatable,dimension(:) :: source_flux ! Source flux G array
 real(dp),allocatable,dimension(:) :: absorption ! Macroscopic absorption cross section G array
 real(dp),allocatable,dimension(:) :: fission ! Macroscopic fission cross section G array
+real(dp),allocatable,dimension(:) :: fission_prob ! Macroscopic fission cross section G array
 real(dp),allocatable,dimension(:,:) :: scatter ! Macroscopic scatter cross section GxG matrix
 
 CONTAINS
@@ -49,6 +50,7 @@ procedure,public :: get_id => get_id_fn ! Returns ID
 procedure,public :: get_fission => get_fission_fn ! Returns Nu-Sigma_f
 procedure,public :: get_removal => get_removal_fn ! Returns (and calculates) the removal cross section
 procedure,public :: get_scatter => get_scatter_fn ! Returns scatter matrix
+procedure,PUBLIC :: get_probability => get_probability_fn ! Returns fission probability
 END TYPE material
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
@@ -65,6 +67,7 @@ private :: get_id_fn
 private :: get_fission_fn
 private :: get_removal_fn
 private :: get_scatter_fn
+private :: get_probability_fn
 ! Now add methods
 CONTAINS
 SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
@@ -102,7 +105,7 @@ SUBROUTINE read_variables_sub(this, filename)
   integer :: lineskip ! skips desired number of lines.
   character(80) :: line ! Used to test the line.
   real(dp) :: left_albedo, right_albedo
-  real(dp), allocatable, dimension(:) :: absorption, source_flux, fission
+  real(dp), allocatable, dimension(:) :: absorption, source_flux, fission, probability
   real(dp), allocatable, dimension(:,:) :: scatter
   real(dp) :: surface_source
   character(80) :: left_boundary, right_boundary
@@ -121,6 +124,11 @@ SUBROUTINE read_variables_sub(this, filename)
       allocate(source_flux(1:groups))
       allocate(fission(1:groups))
       allocate(scatter(1:groups,1:groups))
+      allocate(probability(1:groups))
+    end if
+    if (line == "Fission probability") then
+      read(10,*,iostat=status) probability
+      this%fission_prob = probability
     end if
     ! Check if the material has a defined name
     if (this%id == 'default') then ! If no defined name
@@ -329,4 +337,14 @@ FUNCTION get_scatter_fn(this) result(value)
   real(dp), dimension(size(this%fission),size(this%fission)) :: value
   value = this%scatter
 END FUNCTION get_scatter_fn
+FUNCTION get_probability_fn(this) result(value)
+  !
+  ! Function to return fission probabilities of each group
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Line object
+  real(dp), dimension(size(this%fission_prob)) :: value
+  value = this%fission_prob
+END FUNCTION get_probability_fn
 end module material_class

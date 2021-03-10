@@ -67,24 +67,26 @@ CONTAINS
     CLASS(region),INTENT(IN) :: this ! region object
     get_material_id_fn = this%material_id
   END FUNCTION get_material_id_fn
-  real(dp) FUNCTION get_source_flux_fn(this)
+FUNCTION get_source_flux_fn(this) result(value)
     !
     ! Function to return source flux
     !
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region),INTENT(IN) :: this ! region object
+    real(dp),allocatable,DIMENSION(:) :: value
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    get_source_flux_fn = this%materials%get_source_flux()
+    value = this%materials%get_source_flux()
   END FUNCTION get_source_flux_fn
-  real(dp) FUNCTION get_absorption_fn(this)
+FUNCTION get_absorption_fn(this) result(value)
     !
     ! Function to return macroscopic absorption cross section
     !
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region),INTENT(IN) :: this ! region object
+    real(dp),allocatable,DIMENSION(:) :: value
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    get_absorption_fn = this%materials%get_absorption()
+    value = this%materials%get_absorption()
   END FUNCTION get_absorption_fn
 end module region_class

@@ -15,6 +15,7 @@ MODULE region_class_1d
 !!                                                                           !!
 !!  Revisions:                                                               !!
 !!    16/02/2021: Added function to return nu-sigma_f                        !!
+!!    10/03/2021: Added functions to return prob, removal, and scatter       !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -39,6 +40,9 @@ PROCEDURE,PUBLIC :: get_left_albedo => get_left_albedo_fn ! Returns left albedo
 PROCEDURE,PUBLIC :: get_right_albedo => get_right_albedo_fn ! Returns right albedo
 PROCEDURE,PUBLIC :: get_surface_source => get_surface_source_fn ! Returns surface flux
 procedure,public :: get_fission => get_fission_fn ! Returns nu-sigma_f
+procedure,public :: get_scatter => get_scatter_fn ! Returns scatter
+procedure,public :: get_removal => get_removal_fn ! Returns removal cross sections
+procedure,public :: get_probability => get_probability_fn ! Returns fission probability
 END TYPE region_1d
 ! Restrict access to the actual procedure names
 private :: set_line_id_sub
@@ -53,6 +57,10 @@ private :: get_right_boundary_fn
 private :: get_left_albedo_fn
 private :: get_right_albedo_fn
 private :: get_surface_source_fn
+private :: get_fission_fn
+private :: get_scatter_fn
+private :: get_removal_fn
+private :: get_probability_fn
 ! Now add methods
 CONTAINS
   subroutine set_line_id_sub(this,id)
@@ -176,14 +184,49 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
     get_surface_source_fn = this%materials%get_surface_source()
   END FUNCTION get_surface_source_fn
-  real(dp) FUNCTION get_fission_fn(this)
+  FUNCTION get_fission_fn(this) result(value)
     !
-    ! Function to return surface flux
+    ! Function to return nu sigma f
     !
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
+    real(dp),allocatable,DIMENSION(:) :: value
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    get_fission_fn = this%materials%get_fission()
+    value = this%materials%get_fission()
   END FUNCTION get_fission_fn
+  FUNCTION get_scatter_fn(this) result(value)
+    !
+    ! Function to return scatter
+    !
+    IMPLICIT NONE
+    ! Declare calling arguments
+    CLASS(region_1d),INTENT(IN) :: this ! region object
+    real(dp),allocatable,DIMENSION(:,:) :: value
+    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    value = this%materials%get_scatter()
+  END FUNCTION get_scatter_fn
+  FUNCTION get_removal_fn(this,group) result(value)
+    !
+    ! Function to return removal
+    !
+    IMPLICIT NONE
+    ! Declare calling arguments
+    CLASS(region_1d),INTENT(IN) :: this ! region object
+    real(dp),allocatable,DIMENSION(:) :: value
+    integer,INTENT(IN) :: group
+    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    value = this%materials%get_removal(group)
+  END FUNCTION get_removal_fn
+  FUNCTION get_probability_fn(this) result(value)
+    !
+    ! Function to return fission probability
+    !
+    IMPLICIT NONE
+    ! Declare calling arguments
+    CLASS(region_1d),INTENT(IN) :: this ! region object
+    real(dp),allocatable,DIMENSION(:) :: value
+    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    value = this%materials%get_probability()
+  END FUNCTION get_probability_fn
 end module region_class_1d
