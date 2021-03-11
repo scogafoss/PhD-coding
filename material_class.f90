@@ -338,8 +338,17 @@ FUNCTION get_scatter_fn(this,row,column) result(value)
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
   real(dp) :: value
-  integer,INTENT(IN) :: row,column
-  value = this%scatter(row,column)
+  integer,INTENT(IN) :: row
+  integer,intent(in),optional :: column
+  INTEGER :: i
+  if (present(column)) then
+    value = this%scatter(row,column)
+  else
+    value = 0
+    do i = 1,size(this%absorption)
+      value=value+this%scatter(row,i)
+    end do
+  end if
 END FUNCTION get_scatter_fn
 FUNCTION get_probability_fn(this,index) result(value)
   !

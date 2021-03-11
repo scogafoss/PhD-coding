@@ -16,7 +16,8 @@ OBJS=			    	   precision_set.o \
 									 matrix_class.o \
 									 nuclear_matrix_class.o \
 									 initialise_variables.o \
-				    test_eigenvalue.o
+									 solver_class.o \
+				    test_multigroup.o
 # OBJS=			    	   precision_set.o \
 # 									 line_class.o \
 # 									 material_class.o \
@@ -61,7 +62,7 @@ MODS= $(OBJS:.o=.mod)
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # DEFINE EXECUTABLE
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-EXEC=test_eigenvalue
+EXEC=test_solver_class
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # MAKEFILE VARIABLE

@@ -34,6 +34,7 @@ PROCEDURE,PUBLIC :: get_steps => get_steps_fn ! Returns number of nodes
 PROCEDURE,PUBLIC :: get_geomtype => get_geomtype_fn ! Returns geomtype
 procedure,public ::set_id => set_id_sub ! Allows name to be set
 procedure,public ::get_id => get_id_fn ! Returns ID
+procedure,public :: get_delta => get_delta_fn ! Returns delta
 END TYPE line
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
@@ -44,6 +45,7 @@ private :: get_steps_fn
 private :: get_geomtype_fn
 private :: set_id_sub
 private :: get_id_fn
+private :: get_delta_fn
 ! Now add methods
 CONTAINS
 SUBROUTINE set_variables_sub(this, start, length, steps, geomtype)
@@ -173,4 +175,13 @@ character(80) FUNCTION get_id_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_id_fn = this%id
 END FUNCTION get_id_fn
+real(dp) FUNCTION get_delta_fn(this)
+  !
+  ! Function to return delta
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(line),INTENT(IN) :: this ! Line object
+  get_delta_fn = this%length/this%steps
+END FUNCTION get_delta_fn
 END MODULE line_class

@@ -200,7 +200,7 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
   allocate (this%c(1:size(this%a)))
   delta = regions(1)%get_length()/regions(1)%get_steps()
   absorption = regions(1)%get_removal(group)
-  D = 1 / (3 * (regions(1)%get_absorption()(group)+sum(regions(1)%get_scatter(group,:))))
+  D = 1 / (3 * (regions(1)%get_absorption(group)+(regions(1)%get_scatter(group))))
   region_iterator = 1
   DO i = 1 , SIZE(this%b)
     i_double=i
@@ -220,7 +220,7 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
       region_iterator=region_iterator+1
       delta = regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
       absorption = regions(region_iterator)%get_removal(group)
-      D = 1 / (3 * (regions(region_iterator)%get_absorption()(group)+sum(regions(region_iterator)%get_scatter(group,:))))
+      D = 1 / (3 * (regions(region_iterator)%get_absorption(group)+(regions(region_iterator)%get_scatter(group))))
     end if
   !
   !------------------------------------------------------------------------------
@@ -260,37 +260,45 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
       this%a(i) = -(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()
     ELSE IF (i == SIZE(this%b) .and. regions(region_iterator)%get_right_boundary() == 'v') THEN ! Vacuum right boundary
       ! aii-1 + aii+1
-      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
+      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*&
+      (1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
       ! this%b(i) = absorption+((D/(delta**2))*(1-(1/(2*(i_double-1))))**regions(region_iterator)%get_geomtype()) + &
       ! ((D/(delta**2))*(1+(1/(2*(i_double-1))))**regions(region_iterator)%get_geomtype())-(1/D)*((1-(1/(2*(i_double-1))))**regions(region_iterator)%get_geomtype()) ! aII - delta/D aII+1
       ! aii - aii+1(delta/D)
-      this%b(i) = (absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+(delta/(2*x_coordinate(i))))&
-      **regions(region_iterator)%get_geomtype())))-((-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())*(delta/D))
+      this%b(i) = (absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+&
+      (delta/(2*x_coordinate(i))))&
+      **regions(region_iterator)%get_geomtype())))-((-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))&
+      **regions(region_iterator)%get_geomtype())*(delta/D))
       this%c(i) = 0 ! set to zero, even though not present
     else if (i == SIZE(this%b) .and. regions(region_iterator)%get_right_boundary() == 'r') then ! Reflective right boundary
       !aii-1+aii+1
-      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
+      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*&
+      (1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
       !aii
-      this%b(i) = absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+(delta/(2*x_coordinate(i))))&
-      **regions(region_iterator)%get_geomtype()))
+      this%b(i) = absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+&
+      ((1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()))
       this%c(i) = 0 ! set to zero, even though technically not present
     else if (i == SIZE(this%b) .and. regions(region_iterator)%get_right_boundary() == 's') then ! Surface right boundary
       print *, 'Have you adjusted source flux?'
       ! aii-1 + aii+1
-      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
+      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*&
+      (1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
       ! this%b(i) = absorption+((D/(delta**2))*(1-(1/(2*(i_double-1))))**regions(region_iterator)%get_geomtype()) + &
       ! ((D/(delta**2))*(1+(1/(2*(i_double-1))))**regions(region_iterator)%get_geomtype())-(1/D)*((1-(1/(2*(i_double-1))))**regions(region_iterator)%get_geomtype()) ! aII - delta/D aII+1
       ! aii - aii+1(delta/D)
-      this%b(i) = (absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+(delta/(2*x_coordinate(i))))&
-      **regions(region_iterator)%get_geomtype())))-((-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())*(delta/D))
+      this%b(i) = (absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+&
+      ((1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())))-((-(D/(delta**2))*(1+(delta/&
+      (2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())*(delta/D))
       this%c(i) = 0 ! set to zero, even though not present
     else if (i == SIZE(this%b) .and. regions(region_iterator)%get_right_boundary() == 'a') then ! Albedo right boundary
       !aii-1 + aii+1
-      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
+      this%a(i) = (-(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(-(D/(delta**2))*&
+      (1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
       !aii + aii+1(delta/D)(alpha-1)/(alpha+1)
-      this%b(i) = (absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+(delta/(2*x_coordinate(i))))&
-      **regions(region_iterator)%get_geomtype())))+((-(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())*(delta/D)*((regions(region_iterator)%get_right_albedo()-1)&
-      /(regions(region_iterator)%get_right_albedo()+1)))
+      this%b(i) = (absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+&
+      ((1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())))+((-(D/(delta**2))*&
+      (1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())*(delta/D)*&
+      ((regions(region_iterator)%get_right_albedo()-1)/(regions(region_iterator)%get_right_albedo()+1)))
       this%c(i) = 0 ! set to zero, even though not present
   !
   !------------------------------------------------------------------------------
@@ -298,16 +306,23 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
     ! At each boundary need more terms
   else if(i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
       ! ai,i-1
-      this%a(i) = -(((1/(3*(regions(region_iterator)%get_absorption()(group)+sum(regions(region_iterator)%get_scatter()(group,:)))))/(delta*regions(region_iterator)%get_length()/&
-      regions(region_iterator)%get_steps()))*(1-((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
+      this%a(i) = -(((1/(3*(regions(region_iterator)%get_absorption(group)+&
+      (regions(region_iterator)%get_scatter(group)))))/(delta*regions(region_iterator)%get_length()/&
+      regions(region_iterator)%get_steps()))*(1-((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())/&
+      (2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())
       ! ai,i
-      this%b(i) = absorption + (((1/(3*(regions(region_iterator)%get_absorption()(group)+sum(regions(region_iterator)%get_scatter()(group,:)))))/(delta*regions(region_iterator)%get_length()/&
-      regions(region_iterator)%get_steps()))*(1-((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()) +&
-       (((1/(3*(regions(region_iterator+1)%get_absorption()(group)+sum(regions(region_iterator+1)%get_scatter()(group,:)))))/(delta*regions(region_iterator+1)%get_length()/&
-       regions(region_iterator+1)%get_steps()))*(1+((regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator+1)%get_geomtype())
+      this%b(i) = absorption + (((1/(3*(regions(region_iterator)%get_absorption(group)+&
+      (regions(region_iterator)%get_scatter(group)))))/(delta*regions(region_iterator)%get_length()/&
+      regions(region_iterator)%get_steps()))*(1-((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())/&
+      (2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+(((1/(3*&
+      (regions(region_iterator+1)%get_absorption(group)+(regions(region_iterator+1)%get_scatter(group)))))/&
+      (delta*regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))*&
+      (1+((regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())/(2*x_coordinate(i))))&
+      **regions(region_iterator+1)%get_geomtype())
       ! ai,i+1
-      this%c(i) = -(((1/(3*(regions(region_iterator+1)%get_absorption()(group)+sum(regions(region_iterator+1)%get_scatter()(group,:)))))/&
-      (delta*regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))*(1+((regions(region_iterator+1)%get_length()/&
+      this%c(i) = -(((1/(3*(regions(region_iterator+1)%get_absorption(group)+&
+      (regions(region_iterator+1)%get_scatter(group)))))/(delta*regions(region_iterator+1)%get_length()/&
+      regions(region_iterator+1)%get_steps()))*(1+((regions(region_iterator+1)%get_length()/&
       regions(region_iterator+1)%get_steps())/(2*x_coordinate(i))))**regions(region_iterator+1)%get_geomtype())
   !
   !------------------------------------------------------------------------------
@@ -317,8 +332,8 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
       ! ai,i-1
       this%a(i) = -(D/(delta**2))*(1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()
       ! ai,i
-      this%b(i) = absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+(delta/(2*x_coordinate(i))))&
-      **regions(region_iterator)%get_geomtype()))
+      this%b(i) = absorption + (D/(delta**2))*(((1-(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype())+((1+&
+      (delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()))
       ! ai,i+1
       this%c(i) = -(D/(delta**2))*(1+(delta/(2*x_coordinate(i))))**regions(region_iterator)%get_geomtype()
     END IF

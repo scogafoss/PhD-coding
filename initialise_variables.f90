@@ -118,11 +118,11 @@ contains
               source_tracker=source_tracker+1
               ! If not at boundary node
               if (j/=regions(i)%get_steps()+1) THEN
-                source_flux(k,source_tracker) = regions(i)%get_source_flux()(k)
+                source_flux(k,source_tracker) = regions(i)%get_source_flux(k)
               ! If at boundary
               else
-                source_flux(k,source_tracker) = ((regions(i)%get_source_flux()(k)*regions(i)%get_length()/regions(i)%get_steps())&
-                +(regions(i+1)%get_source_flux()(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
+                source_flux(k,source_tracker) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
+                +(regions(i+1)%get_source_flux(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
                 /((regions(i)%get_length()/regions(i)%get_steps())+(regions(i+1)%get_length()/regions(i+1)%get_steps()))
               end if
             end do
@@ -140,7 +140,7 @@ contains
                 source_flux(k,source_tracker) = regions(i)%get_source_flux()(k)
               ! If at boundary
               else
-                source_flux(k,source_tracker) = ((regions(i)%get_source_flux()(k)*regions(i)%get_length()/regions(i)%get_steps())&
+                source_flux(k,source_tracker) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
                 +(regions(i+1)%get_source_flux()(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
                 /((regions(i)%get_length()/regions(i)%get_steps())+(regions(i+1)%get_length()/regions(i+1)%get_steps()))
               end if

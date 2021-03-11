@@ -11,5 +11,5 @@ program test
             end if
         end do
     end do
-    print *, sum(a(2,:))
+    print *, size(a(2,:))
 end program test

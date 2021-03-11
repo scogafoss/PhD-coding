@@ -15,7 +15,7 @@ MODULE region_class_1d
 !!                                                                           !!
 !!  Revisions:                                                               !!
 !!    16/02/2021: Added function to return nu-sigma_f                        !!
-!!    10/03/2021: Added functions to return prob, removal, and scatter       !!
+!!    10/03/2021: Added functions to return prob, removal, delta and scatter !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -43,6 +43,7 @@ procedure,public :: get_fission => get_fission_fn ! Returns nu-sigma_f
 procedure,public :: get_scatter => get_scatter_fn ! Returns scatter
 procedure,public :: get_removal => get_removal_fn ! Returns removal cross sections
 procedure,public :: get_probability => get_probability_fn ! Returns fission probability
+procedure,public :: get_delta => get_delta_fn ! Returns delta
 END TYPE region_1d
 ! Restrict access to the actual procedure names
 private :: set_line_id_sub
@@ -61,6 +62,7 @@ private :: get_fission_fn
 private :: get_scatter_fn
 private :: get_removal_fn
 private :: get_probability_fn
+private :: get_delta_fn
 ! Now add methods
 CONTAINS
   subroutine set_line_id_sub(this,id)
@@ -105,6 +107,16 @@ CONTAINS
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
     get_length_fn = this%lines%get_length()
   END FUNCTION get_length_fn
+  real(dp) FUNCTION get_delta_fn(this)
+    !
+    ! Function to get delta of region
+    !
+    IMPLICIT NONE
+    ! Declare calling arguments
+    CLASS(region_1d),INTENT(IN) :: this ! region object
+    if(.not.associated(this%lines)) stop 'Error no line associated with region'
+    get_delta_fn = this%lines%get_length()/this%lines%get_steps()
+  END FUNCTION get_delta_fn
   integer FUNCTION get_steps_fn(this)
     !
     ! Function to get number of steps
@@ -204,9 +216,14 @@ CONTAINS
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
     real(dp) :: value
-    integer,INTENT(IN) :: row,column
+    integer,INTENT(IN) :: row
+    integer,OPTIONAL :: column
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    value = this%materials%get_scatter(row,column)
+    if (present(column)) then
+      value = this%materials%get_scatter(row,column)
+    else
+      value = this%materials%get_scatter(row)
+    end if
   END FUNCTION get_scatter_fn
   FUNCTION get_removal_fn(this,group) result(value)
     !
