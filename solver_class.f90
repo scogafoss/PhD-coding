@@ -43,6 +43,7 @@ MODULE solver_class
         real(dp),INTENT(inout) :: keff
         real(dp) :: keff_temp !from the previous iteration
         real(dp),allocatable,dimension(:,:) :: source
+        real(dp),ALLOCATABLE,DIMENSION(:) :: source_temp
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
         type(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
         integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
@@ -68,6 +69,7 @@ MODULE solver_class
           boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the last boundary
         end do
         allocate(source(1:size(matrix_array),1:total_steps+1))
+        allocate(source_temp(1:total_steps+1))
         groups = size(matrix_array)
         ! Initial guesses
         keff = 1
@@ -84,7 +86,6 @@ MODULE solver_class
             phi_iterations=0
             k_iterations = 0
             do
-                keff_last=keff
                 !
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
@@ -107,10 +108,25 @@ MODULE solver_class
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
                                     if (group_iterator /= group) then
-                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/(regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta()))*(((regions(region_iterator)%get_probability(group)/keff)*((regions(region_iterator)%get_fission(group)*regions(region_iterator)%get_delta())+(regions(region_iterator+1)%get_fission(group)*regions(region_iterator+1)%get_delta())))+((regions(region_iterator)%get_scatter(group_iterator,group)*regions(region_iterator)%get_delta())+(regions(region_iterator+1)%get_scatter(group_iterator,group)*regions(region_iterator+1)%get_delta()))))
+                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/&
+                                        (regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta()))*&
+                                        (((regions(region_iterator)%get_probability(group)/keff)*&
+                                        ((regions(region_iterator)%get_fission(group)*regions(region_iterator)%get_delta())+&
+                                        (regions(region_iterator+1)%get_fission(group)*&
+                                        regions(region_iterator+1)%get_delta())))+&
+                                        ((regions(region_iterator)%get_scatter(group_iterator,group)*&
+                                        regions(region_iterator)%get_delta())+&
+                                        (regions(region_iterator+1)%get_scatter(group_iterator,group)*&
+                                        regions(region_iterator+1)%get_delta()))))
                                     ! If in the same group only fission contributes
                                     else
-                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/(regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta()))*(regions(region_iterator)%get_probability(group)/keff)*((regions(region_iterator)%get_fission(group)*regions(region_iterator)%get_delta())+(regions(region_iterator+1)%get_fission(group)*regions(region_iterator+1)%get_delta())))
+                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/&
+                                        (regions(region_iterator)%get_delta()+&
+                                        regions(region_iterator+1)%get_delta()))*&
+                                        (regions(region_iterator)%get_probability(group)/keff)*&
+                                        ((regions(region_iterator)%get_fission(group)*regions(region_iterator)%get_delta())+&
+                                        (regions(region_iterator+1)%get_fission(group)*&
+                                        regions(region_iterator+1)%get_delta())))
                                     end if
                                 end do
                                 region_iterator=region_iterator+1
@@ -120,10 +136,15 @@ MODULE solver_class
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
                                     if (group_iterator /= group) then
-                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*(((regions(region_iterator)%get_probability(group)/keff)*regions(region_iterator)%get_fission(group))+(regions(region_iterator)%get_scatter(group_iterator,group))))
+                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                                        (((regions(region_iterator)%get_probability(group)/keff)*&
+                                        regions(region_iterator)%get_fission(group))+&
+                                        (regions(region_iterator)%get_scatter(group_iterator,group))))
                                         ! If in the same group only fission contributes
                                     else
-                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*((regions(region_iterator)%get_probability(group)/keff)*regions(region_iterator)%get_fission(group)))
+                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                                        ((regions(region_iterator)%get_probability(group)/keff)*&
+                                        regions(region_iterator)%get_fission(group)))
                                     end if
                                 end do
                             end if
@@ -132,7 +153,10 @@ MODULE solver_class
                         ! Now have the total source so can find the phi iteration for current group
                         !
                         phi_temp=phi
-                        phi=matrix_array(group)%thomas_solve(source(group,:))
+                        do i=1,size(source_temp)
+                            source_temp(i)=source(group,i)
+                        end do
+                        phi(group,:)=matrix_array(group)%thomas_solve(source_temp)
                         ! This needs to be done for all of the groups, so loop here
                     end do
                     ! Now this iteration will continue until the fluxes converge
@@ -155,22 +179,30 @@ MODULE solver_class
                         ! If at boundary use average values
                         if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
                             ! Numerator for source
-                            numerator = numerator + (((((regions(region_iterator)%get_fission(group)*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
-                            (regions(region_iterator+1)%get_fission(group)*(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-                            ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
-                            regions(region_iterator+1)%get_steps())))*phi(group,i))*(((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())&
-                            +(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))/2))
+                            numerator = numerator + (((((regions(region_iterator)%get_fission(group)*&
+                            (regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
+                            (regions(region_iterator+1)%get_fission(group)*(regions(region_iterator+1)%get_length()/&
+                            regions(region_iterator+1)%get_steps())))/((regions(region_iterator)%get_length()/&
+                            regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
+                            regions(region_iterator+1)%get_steps())))*phi(group,i))*(((regions(region_iterator)%get_length()/&
+                            regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
+                            regions(region_iterator+1)%get_steps()))/2))
                             ! denominator for source
-                            denominator = denominator + (((((regions(region_iterator)%get_fission(group)*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
-                            (regions(region_iterator+1)%get_fission(group)*(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-                            ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
-                            regions(region_iterator+1)%get_steps())))*phi_temp(group,i))*(((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())&
+                            denominator = denominator + (((((regions(region_iterator)%get_fission(group)*&
+                            (regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
+                            (regions(region_iterator+1)%get_fission(group)*(regions(region_iterator+1)%get_length()/&
+                            regions(region_iterator+1)%get_steps())))/((regions(region_iterator)%get_length()/&
+                            regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
+                            regions(region_iterator+1)%get_steps())))*phi_temp(group,i))*&
+                            (((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())&
                             +(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))/2))
                             region_iterator=region_iterator+1
                         ! IF not at boundary
                         else
-                            numerator = numerator + (regions(region_iterator)%get_fission(group)*phi(group,i)*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))
-                            denominator = denominator + (regions(region_iterator)%get_fission(group)*phi_temp(group,i)*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))
+                            numerator = numerator + (regions(region_iterator)%get_fission(group)*phi(group,i)*&
+                            (regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))
+                            denominator = denominator + (regions(region_iterator)%get_fission(group)*phi_temp(group,i)*&
+                            (regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))
                         end if
                     end do
                 end do
@@ -207,7 +239,12 @@ MODULE solver_class
                             do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                 ! If not in the same group then fine
                                 if (group_iterator /= group) then
-                                    source(group,i)=source(group,i)+((phi(group_iterator,i)/(regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta()))*((regions(region_iterator)%get_scatter(group_iterator,group)*regions(region_iterator)%get_delta())+(regions(region_iterator+1)%get_scatter(group_iterator,group)*regions(region_iterator+1)%get_delta()))))
+                                    source(group,i)=source(group,i)+((phi(group_iterator,i)/(regions(region_iterator)%get_delta()+&
+                                    regions(region_iterator+1)%get_delta()))*&
+                                    ((regions(region_iterator)%get_scatter(group_iterator,group)*&
+                                    regions(region_iterator)%get_delta())+&
+                                    (regions(region_iterator+1)%get_scatter(group_iterator,group)*&
+                                    regions(region_iterator+1)%get_delta())))
                                 ! If in the same group no additional neutrons
                                 else
                                     source(group,i) = source(group,i)
@@ -220,7 +257,8 @@ MODULE solver_class
                             do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                 ! If not in the same group then fine
                                 if (group_iterator /= group) then
-                                    source(group,i) = source(group,i)+(phi(group_iterator,i)*((regions(region_iterator)%get_scatter(group_iterator,group))))
+                                    source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                                    ((regions(region_iterator)%get_scatter(group_iterator,group))))
                                     ! If in the same group only fission contributes
                                 else
                                     source(group,i) = source(group,i)
@@ -232,7 +270,10 @@ MODULE solver_class
                     ! Now have the total source so can find the phi iteration for current group
                     !
                     phi_temp=phi
-                    phi=matrix_array(group)%thomas_solve(source(group,:))
+                    do i=1,size(source_temp)
+                        source_temp(i)=source(group,i)
+                    end do
+                    phi(group,:)=matrix_array(group)%thomas_solve(source_temp)
                     ! This needs to be done for all of the groups, so loop here
                 end do
                 ! Now this iteration will continue until the fluxes converge
@@ -250,7 +291,7 @@ MODULE solver_class
             if (i==1) then
             x_coordinate(i) = regions(region_iterator)%get_start()
             ! At a boundnary
-            else if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
+            else if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
             x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
             region_iterator = region_iterator + 1
             else
@@ -261,13 +302,15 @@ MODULE solver_class
         do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
             do group = 1, groups ! also sum over the total groups
                 ! If at boundary
-                if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
+                if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
                 region_iterator = region_iterator + 1
                 normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-                ((source(group,i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(group,i+1)*(x_coordinate(i+1)**regions(region_iterator)%get_geomtype())))
+                ((source(group,i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(group,i+1)*(x_coordinate(i+1)&
+                **regions(region_iterator)%get_geomtype())))
                 else
                 normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-                ((source(group,i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(group,i+1)*x_coordinate(i+1)**regions(region_iterator)%get_geomtype()))
+                ((source(group,i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(group,i+1)*x_coordinate(i+1)&
+                **regions(region_iterator)%get_geomtype()))
                 end if
             end do
         end do

@@ -21,11 +21,12 @@ module initialise_variables
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 IMPLICIT NONE
 contains
-  subroutine initialise(filename,regions,lines,materials,source_flux)
+  subroutine initialise(filename,regions,lines,materials,source_flux,groups)
     character(len=*), intent(in) :: filename
     type(region_1d), intent(inout), allocatable, dimension(:) :: regions
     type(line),  intent(inout), allocatable, dimension(:) :: lines
     type(material), intent(inout), allocatable, dimension(:) :: materials
+    integer,INTENT(INOUT) :: groups
     real(dp),intent(out), allocatable, dimension(:,:) :: source_flux ! Source flux array
     integer :: i
     integer :: j
@@ -54,6 +55,7 @@ contains
         allocate(materials(1:total_materials))
       else if (line == 'Groups') then
         read(11,*,iostat=status) line, total_groups
+        groups = total_groups
       else if (line == 'Region Number, Linex, Liney, Linez, Material ID') then
         do i = 1,total_regions! Loop until no more regions
           read(11,*,iostat=status) line, lid, mid
@@ -130,18 +132,18 @@ contains
         else if (i == size(regions)) then
             do j = 1, regions(i)%get_steps()
               source_tracker = source_tracker + 1
-              source_flux(k,source_tracker) = regions(i)%get_source_flux()(k)
+              source_flux(k,source_tracker) = regions(i)%get_source_flux(k)
             end do
           ! For internal regions
           else
             do j = 1, regions(i)%get_steps()
               source_tracker = source_tracker + 1
               if (j/=regions(i)%get_steps()) THEN
-                source_flux(k,source_tracker) = regions(i)%get_source_flux()(k)
+                source_flux(k,source_tracker) = regions(i)%get_source_flux(k)
               ! If at boundary
               else
                 source_flux(k,source_tracker) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
-                +(regions(i+1)%get_source_flux()(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
+                +(regions(i+1)%get_source_flux(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
                 /((regions(i)%get_length()/regions(i)%get_steps())+(regions(i+1)%get_length()/regions(i+1)%get_steps()))
               end if
             end do

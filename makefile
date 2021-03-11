@@ -62,7 +62,7 @@ MODS= $(OBJS:.o=.mod)
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # DEFINE EXECUTABLE
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-EXEC=test_solver_class
+EXEC=test_multigroup
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # MAKEFILE VARIABLE
