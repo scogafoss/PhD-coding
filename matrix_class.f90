@@ -147,13 +147,15 @@ SUBROUTINE power_iteration_sub(this, phi, keff, regions)
     do i =1,size(source)
       ! If at a boundary need to average the source flux
       if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
-        source(i) = (1/keff)*((((regions(region_iterator)%get_fission()*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
-        (regions(region_iterator+1)%get_fission()*(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi(i))
+        source(i) = (1/keff)*((((regions(region_iterator)%get_fission(1)*(regions(region_iterator)%get_length()/&
+        regions(region_iterator)%get_steps()))+(regions(region_iterator+1)%get_fission(1)*&
+        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
+        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+&
+        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi(i))
         region_iterator=region_iterator+1
       ! If not at boundary
       else
-        source(i)=(1/keff)*((regions(region_iterator)%get_fission())*phi(i))
+        source(i)=(1/keff)*((regions(region_iterator)%get_fission(1))*phi(i))
       end if
     end do
     !
@@ -174,22 +176,27 @@ SUBROUTINE power_iteration_sub(this, phi, keff, regions)
       ! If at boundary use average values
       if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
         ! Numerator for source
-        numerator = numerator + (((((regions(region_iterator)%get_fission()*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
-        (regions(region_iterator+1)%get_fission()*(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps())))*phi(i))*(((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())&
-        +(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))/2))
+        numerator = numerator + (((((regions(region_iterator)%get_fission(1)*(regions(region_iterator)%get_length()/&
+        regions(region_iterator)%get_steps()))+(regions(region_iterator+1)%get_fission(1)*&
+        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
+        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+&
+        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi(i))*&
+        (((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
+        regions(region_iterator+1)%get_steps()))/2))
         ! denominator for source
-        denominator = denominator + (((((regions(region_iterator)%get_fission()*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
-        (regions(region_iterator+1)%get_fission()*(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps())))*phi_temp(i))*(((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())&
-        +(regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps()))/2))
+        denominator = denominator + (((((regions(region_iterator)%get_fission(1)*(regions(region_iterator)%get_length()/&
+        regions(region_iterator)%get_steps()))+(regions(region_iterator+1)%get_fission(1)*(regions(region_iterator+1)%get_length()/&
+        regions(region_iterator+1)%get_steps())))/((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+&
+        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi_temp(i))*&
+        (((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
+        regions(region_iterator+1)%get_steps()))/2))
         region_iterator=region_iterator+1
       ! IF not at boundary
       else
-        numerator = numerator + (regions(region_iterator)%get_fission()*phi(i)*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))
-        denominator = denominator + (regions(region_iterator)%get_fission()*phi_temp(i)*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))
+        numerator = numerator + (regions(region_iterator)%get_fission(1)*phi(i)*(regions(region_iterator)%get_length()/&
+        regions(region_iterator)%get_steps()))
+        denominator = denominator + (regions(region_iterator)%get_fission(1)*phi_temp(i)*(regions(region_iterator)%get_length()/&
+        regions(region_iterator)%get_steps()))
       end if
     end do
     iterations = iterations +1
@@ -227,10 +234,12 @@ SUBROUTINE power_iteration_sub(this, phi, keff, regions)
     if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
       region_iterator = region_iterator + 1
       normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-      ((source(i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(i+1)*(x_coordinate(i+1)**regions(region_iterator)%get_geomtype())))
+      ((source(i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(i+1)*(x_coordinate(i+1)&
+      **regions(region_iterator)%get_geomtype())))
     else
       normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-      ((source(i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(i+1)*x_coordinate(i+1)**regions(region_iterator)%get_geomtype()))
+      ((source(i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(i+1)*x_coordinate(i+1)&
+      **regions(region_iterator)%get_geomtype()))
     end if
   end do
   ! Make correction for geometry

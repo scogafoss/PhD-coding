@@ -115,7 +115,8 @@ SUBROUTINE discretise_sub(this, lines, materials)
       this%b(i) = 1.0E30 ! very large number?
       this%a(i) = (-D / (delta**2)) *((1-(1/(2*(i_double-1))))**lines%get_geomtype())
     ELSE IF (i == SIZE(this%b) .and. materials%get_right_boundary() == 'v') THEN ! Vacuum right boundary
-      this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII-1 + aII+1
+      this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))&
+      **lines%get_geomtype()) ! aII-1 + aII+1
       ! this%b(i) = materials%get_absorption()+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ! ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())-(1/D)*((1-(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII - delta/D aII+1
       this%b(i) = materials%get_removal(1)+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
@@ -128,12 +129,14 @@ SUBROUTINE discretise_sub(this, lines, materials)
       this%c(i) = 0 ! set to zero, even though technically not present
     else if (i == SIZE(this%b) .and. materials%get_right_boundary() == 's') then ! Surface right boundary
       print *, 'Have you adjusted source flux?'
-      this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII-1 + aII+1
+      this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))&
+      **lines%get_geomtype()) ! aII-1 + aII+1
       this%b(i) = materials%get_removal(1)+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype())-(1/D)*((1-(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII - delta/D aII+1
       this%c(i) = 0 ! set to zero, even though not present
     else if (i == SIZE(this%b) .and. materials%get_right_boundary() == 'a') then ! Albedo right boundary
-      this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) ! aII-1 + aII+1
+      this%a(i) = ((-D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype())+((-D/(delta**2))*(1+(1/(2*(i_double-1))))&
+      **lines%get_geomtype()) ! aII-1 + aII+1
       this%b(i) = materials%get_removal(1)+((D/(delta**2))*(1-(1/(2*(i_double-1))))**lines%get_geomtype()) + &
       ((D/(delta**2))*(1+(1/(2*(i_double-1))))**lines%get_geomtype()) - &
       ((1/delta)*((1+(1/(2*(i_double-1))))**lines%get_geomtype())*(materials%get_right_albedo()-1)/(materials%get_right_albedo()+1)) ! aII - (delta/D)(alpha-1)/(alpha+1) aII+1

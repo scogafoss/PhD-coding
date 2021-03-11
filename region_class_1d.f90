@@ -184,27 +184,29 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
     get_surface_source_fn = this%materials%get_surface_source()
   END FUNCTION get_surface_source_fn
-  FUNCTION get_fission_fn(this) result(value)
+  FUNCTION get_fission_fn(this,index) result(value)
     !
     ! Function to return nu sigma f
     !
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    real(dp),allocatable,DIMENSION(:) :: value
+    real(dp) :: value
+    INTEGER,INTENT(IN) :: index
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    value = this%materials%get_fission()
+    value = this%materials%get_fission(index)
   END FUNCTION get_fission_fn
-  FUNCTION get_scatter_fn(this) result(value)
+  FUNCTION get_scatter_fn(this,row,column) result(value)
     !
     ! Function to return scatter
     !
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    real(dp),allocatable,DIMENSION(:,:) :: value
+    real(dp) :: value
+    integer,INTENT(IN) :: row,column
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    value = this%materials%get_scatter()
+    value = this%materials%get_scatter(row,column)
   END FUNCTION get_scatter_fn
   FUNCTION get_removal_fn(this,group) result(value)
     !
@@ -213,20 +215,21 @@ CONTAINS
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    real(dp),allocatable,DIMENSION(:) :: value
+    real(dp) :: value
     integer,INTENT(IN) :: group
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
     value = this%materials%get_removal(group)
   END FUNCTION get_removal_fn
-  FUNCTION get_probability_fn(this) result(value)
+  FUNCTION get_probability_fn(this,index) result(value)
     !
     ! Function to return fission probability
     !
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    real(dp),allocatable,DIMENSION(:) :: value
+    real(dp):: value
+    INTEGER,INTENT(IN) :: index
     if(.not.associated(this%materials)) stop 'Error no material associated with region'
-    value = this%materials%get_probability()
+    value = this%materials%get_probability(index)
   END FUNCTION get_probability_fn
 end module region_class_1d

@@ -258,25 +258,27 @@ real(dp) FUNCTION get_surface_source_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_surface_source_fn = this%surface_source
 END FUNCTION get_surface_source_fn
-FUNCTION get_source_flux_fn(this) result(value)
+FUNCTION get_source_flux_fn(this,index) result(value)
   !
   ! Function to return right BC
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(this%source_flux)) :: value
-  value = this%source_flux
+  real(dp) :: value
+  INTEGER,INTENT(IN) :: index
+  value = this%source_flux(index)
 END FUNCTION get_source_flux_fn
-FUNCTION get_absorption_fn(this) result(value)
+FUNCTION get_absorption_fn(this,index) result(value)
   !
   ! Function to return right BC
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(this%absorption)) :: value
-  value = this%absorption
+  real(dp) :: value
+  INTEGER,INTENT(IN) :: index
+  value = this%absorption(index)
 END FUNCTION get_absorption_fn
 subroutine set_id_sub (this, id)
   !
@@ -297,15 +299,16 @@ character(80) FUNCTION get_id_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_id_fn = this%id
 END FUNCTION get_id_fn
-FUNCTION get_fission_fn(this) result(value)
+FUNCTION get_fission_fn(this,index) result(value)
   !
   ! Function to return nu-sigma_f
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(this%fission)) :: value
-  value = this%fission
+  INTEGER,INTENT(IN) :: index
+  real(dp) :: value
+  value = this%fission(index)
 END FUNCTION get_fission_fn
 function get_removal_fn(this,group) result(value)
   !
@@ -315,7 +318,7 @@ function get_removal_fn(this,group) result(value)
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
   integer,intent(in) :: group
-  real(dp), dimension(size(this%fission)) :: value
+  real(dp) :: value
   integer :: i
   value = 0
   do i = 1, size(this%fission)
@@ -327,24 +330,26 @@ function get_removal_fn(this,group) result(value)
   end do
   value = value + this%absorption(group)
 end function get_removal_fn
-FUNCTION get_scatter_fn(this) result(value)
+FUNCTION get_scatter_fn(this,row,column) result(value)
   !
   ! Function to return scatter matrix
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(this%fission),size(this%fission)) :: value
-  value = this%scatter
+  real(dp) :: value
+  integer,INTENT(IN) :: row,column
+  value = this%scatter(row,column)
 END FUNCTION get_scatter_fn
-FUNCTION get_probability_fn(this) result(value)
+FUNCTION get_probability_fn(this,index) result(value)
   !
   ! Function to return fission probabilities of each group
   !
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(material),INTENT(IN) :: this ! Line object
-  real(dp), dimension(size(this%fission_prob)) :: value
-  value = this%fission_prob
+  INTEGER,INTENT(IN) :: index
+  real(dp) :: value
+  value = this%fission_prob(index)
 END FUNCTION get_probability_fn
 end module material_class
