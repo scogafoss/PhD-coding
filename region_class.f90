@@ -76,7 +76,7 @@ FUNCTION get_source_flux_fn(this,index) result(value)
     CLASS(region),INTENT(IN) :: this ! region object
     real(dp) :: value
     INTEGER :: index
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (source)'
     value = this%materials%get_source_flux(index)
   END FUNCTION get_source_flux_fn
 FUNCTION get_absorption_fn(this,index) result(value)
@@ -88,7 +88,7 @@ FUNCTION get_absorption_fn(this,index) result(value)
     CLASS(region),INTENT(IN) :: this ! region object
     real(dp) :: value
     INTEGER :: index
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (absorption)'
     value = this%materials%get_absorption(index)
   END FUNCTION get_absorption_fn
 end module region_class

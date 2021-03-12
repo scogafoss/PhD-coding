@@ -153,7 +153,7 @@ CONTAINS
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (left boundary)'
     get_left_boundary_fn = this%materials%get_left_boundary()
   END FUNCTION get_left_boundary_fn
   character(80) FUNCTION get_right_boundary_fn(this)
@@ -163,7 +163,7 @@ CONTAINS
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (right boundary)'
     get_right_boundary_fn = this%materials%get_right_boundary()
   END FUNCTION get_right_boundary_fn
   real(dp) FUNCTION get_left_albedo_fn(this)
@@ -173,7 +173,7 @@ CONTAINS
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (albedo left)'
     get_left_albedo_fn = this%materials%get_left_albedo()
   END FUNCTION get_left_albedo_fn
   real(dp) FUNCTION get_right_albedo_fn(this)
@@ -183,7 +183,7 @@ CONTAINS
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (albedo right)'
     get_right_albedo_fn = this%materials%get_right_albedo()
   END FUNCTION get_right_albedo_fn
   real(dp) FUNCTION get_surface_source_fn(this)
@@ -193,7 +193,7 @@ CONTAINS
     IMPLICIT NONE
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (surface source)'
     get_surface_source_fn = this%materials%get_surface_source()
   END FUNCTION get_surface_source_fn
   FUNCTION get_fission_fn(this,index) result(value)
@@ -205,7 +205,7 @@ CONTAINS
     CLASS(region_1d),INTENT(IN) :: this ! region object
     real(dp) :: value
     INTEGER,INTENT(IN) :: index
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (fission)'
     value = this%materials%get_fission(index)
   END FUNCTION get_fission_fn
   FUNCTION get_scatter_fn(this,row,column) result(value)
@@ -218,7 +218,7 @@ CONTAINS
     real(dp) :: value
     integer,INTENT(IN) :: row
     integer,OPTIONAL :: column
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (scatter)'
     if (present(column)) then
       value = this%materials%get_scatter(row,column)
     else
@@ -234,7 +234,7 @@ CONTAINS
     CLASS(region_1d),INTENT(IN) :: this ! region object
     real(dp) :: value
     integer,INTENT(IN) :: group
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (removal)'
     value = this%materials%get_removal(group)
   END FUNCTION get_removal_fn
   FUNCTION get_probability_fn(this,index) result(value)
@@ -246,7 +246,7 @@ CONTAINS
     CLASS(region_1d),INTENT(IN) :: this ! region object
     real(dp):: value
     INTEGER,INTENT(IN) :: index
-    if(.not.associated(this%materials)) stop 'Error no material associated with region'
+    if(.not.associated(this%materials)) stop 'Error no material associated with region (probability)'
     value = this%materials%get_probability(index)
   END FUNCTION get_probability_fn
 end module region_class_1d

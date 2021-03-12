@@ -133,6 +133,7 @@ SUBROUTINE read_variables_sub(this, filename)
     ! Check if the material has a defined name
     if (this%id == 'default') then ! If no defined name
       if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
+        ! Loop for each of the groups
         do lineskip = 1,groups
           read(10,*,iostat=status) line,absorption(lineskip),source_flux(lineskip),fission(lineskip)
         end do

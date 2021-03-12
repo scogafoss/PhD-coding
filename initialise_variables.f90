@@ -17,6 +17,7 @@ module initialise_variables
 !!    17/02/2021: Updated how input deck is read, due to added nu sigma_f    !!
 !!    09/03/2021: Add funcitonality to calculate source flux for each group, !!
 !!      and checks if source is fission or volumetric, source flux matrix.   !!
+!!    12/03/2021: Corrected material ID reading to not repeat IDs            !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 IMPLICIT NONE
@@ -71,9 +72,15 @@ contains
         end do
       else if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
         do i = 1,total_materials! Loop until no more materials
-          read(11,*,iostat=status) mid
-          ! Set the material ID
-          call materials(i)%set_id(mid)
+          do j=1,total_groups ! Make sure to skip over IDs of the same group
+            if (j==1)then ! Only read the first group corresponding to each material so no repeats
+              read(11,*,iostat=status) mid
+              ! Set the material ID
+              call materials(i)%set_id(mid)
+            else
+              read(11,*,iostat=status)
+            end if
+          end do
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !lines(i)%read_variables(filename) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DO THIS ONCE THE FILE HAS BEEN CLOSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -95,6 +102,7 @@ contains
         ! Associate correct rgion with correct material
         if (materials(j)%get_id() == regions(i)%get_material_id()) then
           call regions(i)%associate_material(materials(j))
+          print *, 'associated region',i,'with material',j
         end if
         ! Define the materials (at the last region just so it only happens once)
         if (i==size(lines)) then

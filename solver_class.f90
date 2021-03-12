@@ -74,6 +74,7 @@ MODULE solver_class
         ! Initial guesses
         keff = 1
         allocate(phi(1:size(matrix_array),1:total_steps+1))
+        allocate(phi_temp(1:size(matrix_array),1:total_steps+1))
         phi = 1
         allocate(x_coordinate(1:total_steps+1))
         !
@@ -103,7 +104,7 @@ MODULE solver_class
                         ! Loop for each node
                         do i = 1, total_steps +1
                             ! If at boundary need to average
-                            if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
+                            if (i == boundary_tracker(region_iterator) .and. i /= size(source(group,:))) then
                                 ! Loop for each group to sum the total fission contribution and scatter
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
@@ -152,7 +153,7 @@ MODULE solver_class
                         !
                         ! Now have the total source so can find the phi iteration for current group
                         !
-                        phi_temp=phi
+                        phi_temp(group,:)=phi(group,:)
                         do i=1,size(source_temp)
                             source_temp(i)=source(group,i)
                         end do
@@ -161,7 +162,9 @@ MODULE solver_class
                     end do
                     ! Now this iteration will continue until the fluxes converge
                     phi_iterations=phi_iterations+1
-                    if(abs(sum(phi)-sum(phi_temp))<convergence_criterion) exit
+                    ! if(abs(sum(phi(1,:))-sum(phi_temp(1,:)))<convergence_criterion) exit
+                    if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
+                    ! print *,'phi ',phi(1,:)
                     ! This exits the do loop for flux iterations
                 end do
                 !
@@ -172,12 +175,12 @@ MODULE solver_class
                 denominator = 0
                 region_iterator=1
                 ! Summed over nodes
-                do i = 1,size(phi)
+                do i = 1,size(phi(1,:))
                     ! Also each node summed over each group
                     do group = 1,groups
                         ! First find numerator and denominator
                         ! If at boundary use average values
-                        if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
+                        if (i == boundary_tracker(region_iterator) .and. i /= size(source(group,:))) then
                             ! Numerator for source
                             numerator = numerator + (((((regions(region_iterator)%get_fission(group)*&
                             (regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()))+&
@@ -234,7 +237,7 @@ MODULE solver_class
                     ! Loop for each node
                     do i = 1, total_steps +1
                         ! If at boundary need to average
-                        if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
+                        if (i == boundary_tracker(region_iterator) .and. i /= size(source(group,:))) then
                             ! Loop for each group to sum the total scatter
                             do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                 ! If not in the same group then fine
