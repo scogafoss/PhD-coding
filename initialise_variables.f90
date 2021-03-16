@@ -32,7 +32,7 @@ contains
     integer :: i
     integer :: j
     INTEGER :: k
-    integer :: source_tracker=0
+    integer :: source_tracker
     integer :: status ! Checks if end of file
     integer :: total_nodes
     integer :: total_regions
@@ -120,6 +120,7 @@ contains
     if (ALLOCATED(source_flux)) then
       ! Loop all this for each group
       do k = 1, total_groups
+        source_tracker=0 ! Reset to zero for each group
         ! Set the source flux
         do i = 1, size(regions)
           ! First region has extra node at the start

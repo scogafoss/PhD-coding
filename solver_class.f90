@@ -281,7 +281,7 @@ MODULE solver_class
                 end do
                 ! Now this iteration will continue until the fluxes converge
                 phi_iterations=phi_iterations+1
-                if(abs(sum(phi)-sum(phi_temp))<convergence_criterion) exit
+                if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
                 ! This exits the do loop for flux iterations
             end do
         end if
