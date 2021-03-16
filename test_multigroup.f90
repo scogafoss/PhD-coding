@@ -42,5 +42,8 @@ program test_multigroup
     end do
     call solve%multigroup_solver(finite_phi,keff, regions, matrix_array,source_flux)
     print *, 'Effective neutron multiplication factor:',keff
+    OPEN()
+    do i=1,groups
+
   end program test_multigroup
   
