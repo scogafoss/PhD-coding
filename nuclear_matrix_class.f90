@@ -304,7 +304,7 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
   !------------------------------------------------------------------------------
   !
     ! At each boundary need more terms
-  else if(i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
+    else if(i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
       ! ai,i-1
       this%a(i) = -(((1/(3*(regions(region_iterator)%get_absorption(group)+&
       (regions(region_iterator)%get_scatter(group)))))/(delta*regions(region_iterator)%get_length()/&

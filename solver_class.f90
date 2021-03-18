@@ -9,7 +9,7 @@ MODULE solver_class
   !!                                                                           !!
   !!  Dependant files: precision_set.f90, region_class_1d.f90                  !!
   !!                                                                           !!
-  !!  Author: Oliver Conway                             Start date: 11/03/2021 !!
+  !!  Author: Oliver Conway                             Start date: 16/03/2021 !!
   !!                                                                           !!
   !!  Purpose: Class to perform multigroup solve                               !!
   !!                                                                           !!
@@ -30,7 +30,7 @@ MODULE solver_class
     PRIVATE :: multigroup_solver_sub
     ! Now add methods
     contains
-    SUBROUTINE multigroup_solver_sub(this, phi, keff, regions, matrix_array,source_flux)
+    SUBROUTINE multigroup_solver_sub(this, phi, keff, regions, matrix_array,source_flux,x_coordinate)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -58,7 +58,7 @@ MODULE solver_class
         real(dp) :: numerator
         real(dp) :: denominator
         real(dp) :: normalisation
-        real(dp),allocatable,dimension(:) :: x_coordinate ! Tracks x position in the system
+        real(dp),intent(inout),allocatable,dimension(:) :: x_coordinate ! Tracks x position in the system
         real(dp),INTENT(IN),allocatable,dimension(:,:) :: source_flux
         ! Convergence condition
         convergence_criterion = 1e-5
@@ -76,6 +76,7 @@ MODULE solver_class
         allocate(phi(1:size(matrix_array),1:total_steps+1))
         allocate(phi_temp(1:size(matrix_array),1:total_steps+1))
         phi = 1
+        phi_temp=1
         allocate(x_coordinate(1:total_steps+1))
         !
         ! If source flux is not allocated this is an eigenvalue problem
@@ -109,7 +110,7 @@ MODULE solver_class
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
                                     if (group_iterator /= group) then
-                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/&
+                                        source(group,i)=source(group,i)+((phi_temp(group_iterator,i)/&
                                         (regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta()))*&
                                         (((regions(region_iterator)%get_probability(group)/keff)*&
                                         ((regions(region_iterator)%get_fission(group)*regions(region_iterator)%get_delta())+&
@@ -121,7 +122,7 @@ MODULE solver_class
                                         regions(region_iterator+1)%get_delta()))))
                                     ! If in the same group only fission contributes
                                     else
-                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/&
+                                        source(group,i)=source(group,i)+((phi_temp(group_iterator,i)/&
                                         (regions(region_iterator)%get_delta()+&
                                         regions(region_iterator+1)%get_delta()))*&
                                         (regions(region_iterator)%get_probability(group)/keff)*&
@@ -137,13 +138,13 @@ MODULE solver_class
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
                                     if (group_iterator /= group) then
-                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                                        source(group,i) = source(group,i)+(phi_temp(group_iterator,i)*&
                                         (((regions(region_iterator)%get_probability(group)/keff)*&
                                         regions(region_iterator)%get_fission(group))+&
                                         (regions(region_iterator)%get_scatter(group_iterator,group))))
                                         ! If in the same group only fission contributes
                                     else
-                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                                        source(group,i) = source(group,i)+(phi_temp(group_iterator,i)*&
                                         ((regions(region_iterator)%get_probability(group)/keff)*&
                                         regions(region_iterator)%get_fission(group)))
                                     end if
@@ -220,6 +221,8 @@ MODULE solver_class
         ! If source flux is allocated then no keff iteration needed
         !
         else
+            phi_iterations=0
+            k_iterations = 0
             source = source_flux
             !
             ! Do loop to perform iteration on energy groups (continues till convergence of phi)
@@ -242,7 +245,8 @@ MODULE solver_class
                             do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                 ! If not in the same group then fine
                                 if (group_iterator /= group) then
-                                    source(group,i)=source(group,i)+((phi(group_iterator,i)/(regions(region_iterator)%get_delta()+&
+                                    source(group,i)=source(group,i)+((phi_temp(group_iterator,i)/&
+                                    (regions(region_iterator)%get_delta()+&
                                     regions(region_iterator+1)%get_delta()))*&
                                     ((regions(region_iterator)%get_scatter(group_iterator,group)*&
                                     regions(region_iterator)%get_delta())+&
@@ -260,8 +264,16 @@ MODULE solver_class
                             do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                 ! If not in the same group then fine
                                 if (group_iterator /= group) then
-                                    source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                                    ! if(group==2 .and. i==1) then
+                                    !     print*,'before: source(2,1)=',source(2,1),'phi_temp(1,1)=',phi_temp(1,1),'regions(1)%get_scatter(1,2)=',regions(1)%get_scatter(1,2)
+                                    !     print*,'(in region:',region_iterator,')'
+                                    ! end if
+                                    source(group,i) = source(group,i)+(phi_temp(group_iterator,i)*&
                                     ((regions(region_iterator)%get_scatter(group_iterator,group))))
+                                    ! if(group==2 .and. i==1) then
+                                    !     print*,'after: source(2,1)=',source(2,1),'phi_temp(1,1)=',phi_temp(1,1),'regions(1)%get_scatter(1,2)=',regions(1)%get_scatter(1,2)
+                                    !     print*,'(in region:',region_iterator,')'
+                                    ! end if
                                     ! If in the same group only fission contributes
                                 else
                                     source(group,i) = source(group,i)
@@ -272,7 +284,7 @@ MODULE solver_class
                     !
                     ! Now have the total source so can find the phi iteration for current group
                     !
-                    phi_temp=phi
+                    phi_temp(group,:)=phi(group,:)
                     do i=1,size(source_temp)
                         source_temp(i)=source(group,i)
                     end do
@@ -302,26 +314,32 @@ MODULE solver_class
             end if
         end do
         ! Now calculate the normalisation
-        do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
-            do group = 1, groups ! also sum over the total groups
-                ! If at boundary
-                if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
-                region_iterator = region_iterator + 1
-                normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-                ((source(group,i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(group,i+1)*(x_coordinate(i+1)&
-                **regions(region_iterator)%get_geomtype())))
-                else
-                normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-                ((source(group,i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(group,i+1)*x_coordinate(i+1)&
-                **regions(region_iterator)%get_geomtype()))
-                end if
+        ! If fission source
+        if (.not.(allocated(source_flux))) then
+            do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
+                do group = 1, groups ! also sum over the total groups
+                    ! If at boundary
+                    if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
+                    region_iterator = region_iterator + 1
+                    normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
+                    ((source(group,i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(group,i+1)*&
+                    (x_coordinate(i+1)**regions(region_iterator)%get_geomtype())))
+                    else
+                    normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
+                    ((source(group,i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(group,i+1)*x_coordinate(i+1)&
+                    **regions(region_iterator)%get_geomtype()))
+                    end if
+                end do
             end do
-        end do
-        ! Make correction for geometry
-        if(regions(region_iterator)%get_geomtype()==1) then! Cylindrical
-            normalisation=2*pi_dp*normalisation
-        else if (regions(region_iterator)%get_geomtype()==2) then! spherical
-            normalisation=4*pi_dp*normalisation
+            ! Make correction for geometry
+            if(regions(region_iterator)%get_geomtype()==1) then! Cylindrical
+                normalisation=2*pi_dp*normalisation
+            else if (regions(region_iterator)%get_geomtype()==2) then! spherical
+                normalisation=4*pi_dp*normalisation
+            end if
+        ! If volumetric
+        else
+            normalisation=1
         end if
         ! Now normalise flux
         phi = phi / normalisation

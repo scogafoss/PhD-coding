@@ -33,17 +33,28 @@ program test_multigroup
     integer :: k
     integer :: i
     integer :: groups
+    real(dp),ALLOCATABLE,DIMENSION(:) :: x_coordinate
     filename = 'input_deck_multigroup.dat'
+    gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
+    London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     call initialise(filename,regions,lines,materials,source_flux,groups)
     ALLOCATE(matrix_array(1:groups))
     do i = 1, size(matrix_array) ! Does this work???????????????
         call nuc1%discretise_regions(regions,i) ! ith group
         call matrix_array(i)%set_variables(nuc1%get_a(),nuc1%get_b(),nuc1%get_c())
     end do
-    call solve%multigroup_solver(finite_phi,keff, regions, matrix_array,source_flux)
+    call solve%multigroup_solver(finite_phi,keff, regions, matrix_array,source_flux,x_coordinate)
     print *, 'Effective neutron multiplication factor:',keff
-    OPEN()
-    do i=1,groups
-
+    open(60, file ='x_y1_y2.txt')
+    open(70, file ='xgem_ygem1_ygem2.txt')
+    do i=1,size(x_coordinate)
+        write(60,*) x_coordinate(i), finite_phi(:,i)
+    end do
+    close (60)
+    call read_gem(gem_file,gem_x,gem_phi)
+    do i=1,size(gem_x)
+        write(70,*) gem_x(i),gem_phi(:,i)
+    end do
+    close (70)
   end program test_multigroup
   
