@@ -17,18 +17,18 @@ Region Number, Linex, Liney, Linez, Material ID
 material_by_correlation
 #material_by_value
 ref (mxx), sigma_a, source flux, nu sigma_f
-m01 1.0 1.0 1.0
-m01 1.5 2.0 2.0
-m02 2.0 1.2 3.0
-m02 1.0 2.5 4.0
+m01 1.0 0.0 1.0
+m01 1.5 0.0 2.0
+m02 2.0 0.0 3.0
+m02 1.0 0.0 4.0
 
 ------------SCATTER CROSS SECTIONS------------------
 m01
-1.0 1.5
-1.0 2.5
+0.0 0.0
+0.0 0.0
 m02
-1.2 1.6
-1.1 2.6
+0.0 0.0
+0.0 0.0
 
 ------------LINE DEFINITIONS------------------
 start, length, steps, ref (lxx), dim (x/r,y,z)
