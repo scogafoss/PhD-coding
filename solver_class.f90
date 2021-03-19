@@ -16,7 +16,7 @@ MODULE solver_class
   !!  Revisions:                                                               !!
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
     IMPLICIT NONE
     ! Type definition
     TYPE,PUBLIC :: solver ! This will be the name we instantiate
@@ -92,13 +92,14 @@ MODULE solver_class
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
                 do
+                    print *,'phi',phi(1,1)
                     !
                     ! Need to perform calculation for each energy group
                     !
                     do group = 1,groups
                         !
                         ! Correct source flux for fission, but only if there is no volumetric source
-                        !                    
+                        !
                         !need to sum each of the possible sources of fission and scatter
                         source(group,:)=0
                         region_iterator = 1
@@ -110,7 +111,7 @@ MODULE solver_class
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
                                     if (group_iterator /= group) then
-                                        source(group,i)=source(group,i)+((phi_temp(group_iterator,i)/&
+                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/&
                                         (regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta()))*&
                                         (((regions(region_iterator)%get_probability(group)/keff)*&
                                         ((regions(region_iterator)%get_fission(group)*regions(region_iterator)%get_delta())+&
@@ -122,7 +123,7 @@ MODULE solver_class
                                         regions(region_iterator+1)%get_delta()))))
                                     ! If in the same group only fission contributes
                                     else
-                                        source(group,i)=source(group,i)+((phi_temp(group_iterator,i)/&
+                                        source(group,i)=source(group,i)+((phi(group_iterator,i)/&
                                         (regions(region_iterator)%get_delta()+&
                                         regions(region_iterator+1)%get_delta()))*&
                                         (regions(region_iterator)%get_probability(group)/keff)*&
@@ -138,13 +139,13 @@ MODULE solver_class
                                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                     ! If not in the same group then fine
                                     if (group_iterator /= group) then
-                                        source(group,i) = source(group,i)+(phi_temp(group_iterator,i)*&
+                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*&
                                         (((regions(region_iterator)%get_probability(group)/keff)*&
                                         regions(region_iterator)%get_fission(group))+&
                                         (regions(region_iterator)%get_scatter(group_iterator,group))))
                                         ! If in the same group only fission contributes
                                     else
-                                        source(group,i) = source(group,i)+(phi_temp(group_iterator,i)*&
+                                        source(group,i) = source(group,i)+(phi(group_iterator,i)*&
                                         ((regions(region_iterator)%get_probability(group)/keff)*&
                                         regions(region_iterator)%get_fission(group)))
                                     end if
@@ -155,10 +156,10 @@ MODULE solver_class
                         ! Now have the total source so can find the phi iteration for current group
                         !
                         phi_temp(group,:)=phi(group,:)
-                        do i=1,size(source_temp)
-                            source_temp(i)=source(group,i)
-                        end do
-                        phi(group,:)=matrix_array(group)%thomas_solve(source_temp)
+                        ! do i=1,size(source_temp)
+                        !     source_temp(i)=source(group,i)
+                        ! end do
+                        phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
                         ! This needs to be done for all of the groups, so loop here
                     end do
                     ! Now this iteration will continue until the fluxes converge
@@ -223,7 +224,8 @@ MODULE solver_class
         else
             phi_iterations=0
             k_iterations = 0
-            source = source_flux
+            ! print *,'source(2,101)',source(2,101)
+            ! print*,'scatter(1,2) =',regions(1)%get_scatter(1,2)
             !
             ! Do loop to perform iteration on energy groups (continues till convergence of phi)
             !
@@ -234,8 +236,9 @@ MODULE solver_class
                 do group = 1,groups
                     !
                     ! Correct source flux for fission, but only if there is no volumetric source
-                    !                    
+                    !
                     !need to sum each of the possible sources of scatter
+                    source = source_flux ! volumetric source only
                     region_iterator = 1
                     ! Loop for each node
                     do i = 1, total_steps +1
@@ -245,13 +248,17 @@ MODULE solver_class
                             do group_iterator = 1,groups ! group iterator -> g' and group -> g
                                 ! If not in the same group then fine
                                 if (group_iterator /= group) then
-                                    source(group,i)=source(group,i)+((phi_temp(group_iterator,i)/&
+                                    source(group,i)=source(group,i)+((phi(group_iterator,i)/&
                                     (regions(region_iterator)%get_delta()+&
                                     regions(region_iterator+1)%get_delta()))*&
                                     ((regions(region_iterator)%get_scatter(group_iterator,group)*&
                                     regions(region_iterator)%get_delta())+&
                                     (regions(region_iterator+1)%get_scatter(group_iterator,group)*&
                                     regions(region_iterator+1)%get_delta())))
+
+                                    print*,'source(',group,',',i,') =',source(group,i)
+                                    print*,'phi(1,101)',phi(1,101)
+                                    print*,'source(2,101)',source(2,101)
                                 ! If in the same group no additional neutrons
                                 else
                                     source(group,i) = source(group,i)
@@ -268,7 +275,7 @@ MODULE solver_class
                                     !     print*,'before: source(2,1)=',source(2,1),'phi_temp(1,1)=',phi_temp(1,1),'regions(1)%get_scatter(1,2)=',regions(1)%get_scatter(1,2)
                                     !     print*,'(in region:',region_iterator,')'
                                     ! end if
-                                    source(group,i) = source(group,i)+(phi_temp(group_iterator,i)*&
+                                    source(group,i) = source(group,i)+(phi(group_iterator,i)*&
                                     ((regions(region_iterator)%get_scatter(group_iterator,group))))
                                     ! if(group==2 .and. i==1) then
                                     !     print*,'after: source(2,1)=',source(2,1),'phi_temp(1,1)=',phi_temp(1,1),'regions(1)%get_scatter(1,2)=',regions(1)%get_scatter(1,2)
@@ -285,10 +292,10 @@ MODULE solver_class
                     ! Now have the total source so can find the phi iteration for current group
                     !
                     phi_temp(group,:)=phi(group,:)
-                    do i=1,size(source_temp)
-                        source_temp(i)=source(group,i)
-                    end do
-                    phi(group,:)=matrix_array(group)%thomas_solve(source_temp)
+                    ! do i=1,size(source_temp)
+                    !     source_temp(i)=source(group,i)
+                    ! end do
+                    phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
                     ! This needs to be done for all of the groups, so loop here
                 end do
                 ! Now this iteration will continue until the fluxes converge

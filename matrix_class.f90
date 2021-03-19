@@ -70,7 +70,7 @@ FUNCTION thomas_solve_fn(this, source_flux) result(solution)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(matrix),INTENT(IN) :: this ! Matrix object
-  real(dp), allocatable, dimension(:) :: source_flux
+  real(dp), INTENT(IN), dimension(:) :: source_flux
   REAL(dp), DIMENSION( SIZE(this%a) ) :: solution
   REAL(dp), DIMENSION( SIZE(this%b) ) :: btemp
   REAL(dp), DIMENSION( SIZE(source_flux) ) :: dtemp
