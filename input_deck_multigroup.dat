@@ -3,9 +3,9 @@ Total: 2
 Materials
 Total: 2
 Groups
-Total: 2
+Total: 1
 Fission probability
-0.5 0.5
+1.0
 Dimension: 1
 Coordinate: rz
 Max_Dims: 100.0 40.0
@@ -18,17 +18,13 @@ material_by_correlation
 #material_by_value
 ref (mxx), sigma_a, source flux, nu sigma_f
 m01 1.0 0.0 1.0
-m01 1.5 0.0 2.0
 m02 2.0 0.0 3.0
-m02 1.0 0.0 4.0
 
 ------------SCATTER CROSS SECTIONS------------------
 m01
-0.0 0.0
-0.0 0.0
+0.0
 m02
-0.0 0.0
-0.0 0.0
+0.0
 
 ------------LINE DEFINITIONS------------------
 start, length, steps, ref (lxx), dim (x/r,y,z)
