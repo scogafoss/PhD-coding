@@ -205,7 +205,7 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
   DO i = 1 , SIZE(this%b)
     i_double=i
     ! Check if at a boundary, where average values are needed. No need for last value of i.
-    if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
+    if (i == boundary_tracker(region_iterator) .and. region_iterator < size(regions)) then
       ! D = ((1/(3*absorption))*delta+(1/(3*(regions(region_iterator+1)%get_absorption()))*(regions(region_iterator+1)%get_length()&
       ! /(regions(region_iterator+1)%get_steps()))))/(delta+(regions(region_iterator+1)%get_length()&
       ! /(regions(region_iterator+1)%get_steps())))
@@ -216,7 +216,7 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
       ! region_iterator=region_iterator+1
     end if
     ! Check if just after a boudary, where values are updated to new region
-    if (i==boundary_tracker(region_iterator)+1 .and. i /= size(this%b)) then
+    if (i==boundary_tracker(region_iterator)+1 .and. region_iterator < size(regions)) then
       region_iterator=region_iterator+1
       delta = regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
       absorption = regions(region_iterator)%get_removal(group)

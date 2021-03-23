@@ -229,6 +229,7 @@ SUBROUTINE power_iteration_sub(this, phi, keff, regions)
     end if
   end do
   ! Now calculate the normalisation
+  region_iterator=1
   do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
     ! If at boundary
     if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then

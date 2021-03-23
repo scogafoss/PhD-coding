@@ -20,6 +20,7 @@ MODULE solver_class
   !!      function to calculate the fission and scatter source. Method of      !!
   !!      flux iteration needed changing, should iterate scatter source not    !!  
   !!      changing fission source until keff is changed.                       !!  
+  !!    23/03/2021: Added function to calculate x_coordinate, and normalisation!!  
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -35,8 +36,10 @@ MODULE solver_class
     procedure,PUBLIC :: weighted_average => weighted_average_fn ! Calcualtes weighted average
     procedure,PUBLIC :: k_iteration => k_iteration_sub ! Performs calculation for next iteration of eigenvalue
     procedure,public :: fixed_source_iteration => fixed_source_iteration_sub ! Performs flux iteration for volumetric (fixed) source
-    procedure,public :: fission_source => fission_source_fn ! Returns the fission source 
-    procedure,public :: scatter_source => scatter_source_fn ! Returns the scatter source 
+    procedure,public :: fission_reaction_rate => fission_reaction_rate_fn ! Returns the fission source 
+    procedure,public :: scatter_source => scatter_source_fn ! Returns the scatter source
+    procedure,public :: x_coordinates =>  x_coordinates_sub ! Returns the position of each node in the problem
+    procedure,public :: normalise => normalise_fn ! Returns normalisation
     END TYPE solver
     ! Restrict access to the actual procedure names
     PRIVATE :: multigroup_solver_sub
@@ -44,8 +47,10 @@ MODULE solver_class
     PRIVATE :: weighted_average_fn
     PRIVATE :: k_iteration_sub
     PRIVATE :: fixed_source_iteration_sub
-    PRIVATE :: fission_source_fn
+    PRIVATE :: fission_reaction_rate_fn
     PRIVATE :: scatter_source_fn
+    PRIVATE :: x_coordinates_sub
+    PRIVATE :: normalise_fn
 
     ! Now add methods
     contains
@@ -79,17 +84,17 @@ MODULE solver_class
         real(dp) :: normalisation
         real(dp),intent(inout),allocatable,dimension(:) :: x_coordinate ! Tracks x position in the system
         real(dp),INTENT(IN),allocatable,dimension(:,:) :: source_flux
-        real(dp),allocatable,dimension(:,:) :: source_f ! fission source
+        real(dp),allocatable,dimension(:) :: f_rate ! fission reaction ratesource
         ! Convergence condition
         convergence_criterion = 1e-5
         ! Record where boundaries are, so can use correct values of fission and delta
         total_steps = 0
         do region_iterator =1,size(regions)
             total_steps = total_steps + regions(region_iterator)%get_steps()
-            boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the last boundary
+            boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the edge of last boundary
         end do
         allocate(source(1:size(matrix_array),1:total_steps+1))
-        allocate(source_f(1:size(matrix_array),1:total_steps+1))
+        allocate(f_rate(1:total_steps+1))
         allocate(source_temp(1:total_steps+1))
         groups = size(matrix_array)
         ! Initial guesses
@@ -99,6 +104,7 @@ MODULE solver_class
         phi = 1
         phi_temp=1
         allocate(x_coordinate(1:total_steps+1))
+        call this%x_coordinates(total_steps,regions,boundary_tracker,x_coordinate) ! Calculates x coordinates in the problem
         !
         ! If source flux is not allocated this is an eigenvalue problem
         !
@@ -112,12 +118,12 @@ MODULE solver_class
                 !
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
-                print *,'before flux iteration keff=',keff
-                print *,'before flux iteration phi(1,1)=',phi(1,1)
+                ! print *,'before flux iteration keff=',keff
+                ! print *,'before flux iteration phi(1,1)=',phi(1,1)
                 call this%flux_iteration(phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,boundary_tracker,&
-                convergence_criterion,total_steps,groups,source_f)
-                print *,'before flux iteration phi(1,1)=',phi(1,1)
-                print *,'after flux iteration keff=',keff
+                convergence_criterion,total_steps,groups,f_rate)
+                ! print *,'after  flux iteration phi(1,1)=',phi(1,1)
+                ! print *,'after flux iteration keff=',keff
                 !
                 ! Now calculate next keff and store the previous
                 !
@@ -127,7 +133,7 @@ MODULE solver_class
                 region_iterator=1
                 ! Summed over nodes
                 call this%k_iteration(phi,phi_temp,source,regions,boundary_tracker,region_iterator,groups,numerator,denominator,&
-                source_f,total_steps,keff)
+                f_rate,total_steps,keff,x_coordinate)
                 k_iterations = k_iterations +1
                 !
                 ! Calculate the new keff
@@ -137,9 +143,10 @@ MODULE solver_class
                 ! If the convergence_criterion has been met, use the new keff and exit the loop
                 !
                 if (abs((keff-keff_temp)/keff_temp)<convergence_criterion) then
+                    f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps,keff)
                     do group=1,groups
-                        source(group,:)=this%fission_source(group,groups,phi,regions,boundary_tracker,total_steps,keff)+&
-                        this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
+                        source(group,:)=(f_rate*regions(1)%get_probability(group)/keff)+this%scatter_source(group,groups,&
+                        total_steps,phi,regions,boundary_tracker)
                     end do
                     do group=1,groups
                         phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
@@ -169,52 +176,7 @@ MODULE solver_class
         !
         ! Normalise the flux values
         !
-        ! First track the x coordinate for each region
-        region_iterator=1
-        do i = 1, total_steps+1
-            if (i==1) then
-            x_coordinate(i) = regions(region_iterator)%get_start()
-            ! At a boundnary
-            else if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
-            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
-            region_iterator = region_iterator + 1
-            else
-            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
-            end if
-        end do
-        ! Now calculate the normalisation
-        ! If fission source
-        if (.not.(allocated(source_flux))) then
-            normalisation=0
-            ! calculate fission source
-            do group=1,groups
-                source_f(group,:)=this%fission_source(group,groups,phi,regions,boundary_tracker,total_steps,keff)
-            end do
-            do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
-                do group = 1, groups ! also sum over the total groups
-                    ! If at boundary
-                    if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
-                    region_iterator = region_iterator + 1
-                    normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-                    ((source(group,i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source_f(group,i+1)*&
-                    (x_coordinate(i+1)**regions(region_iterator)%get_geomtype())))
-                    else
-                    normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-                    ((source(group,i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source_f(group,i+1)*&
-                    x_coordinate(i+1)**regions(region_iterator)%get_geomtype()))
-                    end if
-                end do
-            end do
-            ! Make correction for geometry
-            if(regions(region_iterator)%get_geomtype()==1) then! Cylindrical
-                normalisation=2*pi_dp*normalisation
-            else if (regions(region_iterator)%get_geomtype()==2) then! spherical
-                normalisation=4*pi_dp*normalisation
-            end if
-        ! If volumetric
-        else
-            normalisation=1
-        end if
+        normalisation = this%normalise(source_flux,groups,f_rate,phi,regions,boundary_tracker,total_steps,x_coordinate,keff)
         ! Now normalise flux
         phi = phi / normalisation
         print *, 'Number of flux iterations = ',phi_iterations
@@ -222,7 +184,7 @@ MODULE solver_class
         print *,'normalisation = ',normalisation,'sum(s) = ', sum(source)
     END SUBROUTINE multigroup_solver_sub
     subroutine flux_iteration_sub(this,phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,boundary_tracker,&
-        convergence_criterion,total_steps,groups,source_f)
+        convergence_criterion,total_steps,groups,f_rate)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -244,24 +206,21 @@ MODULE solver_class
         integer :: group
         integer,INTENT(IN) :: groups
         integer :: group_iterator
-        real(dp),intent(inout),DIMENSION(:,:) :: source_f ! Fission source
+        real(dp),intent(inout),DIMENSION(:) :: f_rate ! Fission source
         real(dp),DIMENSION(size(phi(:,1)),size(phi(1,:))) :: source_s ! Scatter source
         !
         ! Do loop to perform iteration on energy groups (continues till convergence of phi)
         !
-        print*,'phi going in = ',phi(1,1)
         !
-        ! First find the fission source for this iteration
+        ! First find the fission reaction rate for this iteration
         !
-        do group = 1,groups
-            source_f(group,:)=this%fission_source(group,groups,phi,regions,boundary_tracker,total_steps,keff)
-        end do
+        f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps,keff)
         !
         ! Now loop scatter till convergence
         !
         do            
             !
-            ! Now need to perform scatter calculation for each energy group and iterat
+            ! Now need to perform scatter calculation for each energy group and iterate
             !
             do group = 1,groups
                 !
@@ -273,7 +232,10 @@ MODULE solver_class
                 !
                 phi_temp(group,:)=phi(group,:)
                 ! print *, 'input into thomas', source(group,:)
-                source(group,:)=source_s(group,:)+source_f(group,:)
+                source(group,:)=source_s(group,:)+(f_rate*(regions(1)%get_probability(group)/keff))
+                ! print*,'regions(1)%get_probability(group)/keff) = ',regions(1)%get_probability(group)/keff
+                ! print *,'To check source calculation: source(1,101)=',source(1,101),'phi(1,101)=',phi(1,101)
+                ! print *,'and: source(1,201)=',source(1,201),'phi(1,201)=',phi(1,201)
                 phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
                 ! This needs to be done for all of the groups, so loop here
             end do
@@ -298,7 +260,7 @@ MODULE solver_class
         weighted_average_fn=((variable1*weight1)+(variable2*weight2))/(weight1+weight2)
     end function weighted_average_fn
     subroutine k_iteration_sub(this,phi,phi_temp,source,regions,boundary_tracker,region_iterator,groups,numerator,denominator,&
-        source_f,total_steps,keff)
+        f_rate,total_steps,keff,x_coordinate)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -308,8 +270,8 @@ MODULE solver_class
         real(dp),INTENT(inout),dimension(:,:) :: phi ! Rows are groups, columns are nodes
         real(dp),intent(inout),dimension(:,:) :: phi_temp ! phi from the previous iteration
         real(dp),INTENT(INOUT),dimension(:,:) :: source
-        real(dp),INTENT(INOUT),dimension(:,:) :: source_f
-        real(dp),dimension(size(source_f(:,1)),size(source_f(1,:))) :: source_f_new
+        real(dp),INTENT(IN),dimension(:) :: f_rate
+        real(dp),dimension(size(f_rate)) :: f_rate_new
         type(region_1d),INTENT(in),dimension(:) :: regions
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         integer,INTENT(INOUT) :: region_iterator
@@ -320,29 +282,31 @@ MODULE solver_class
         real(dp),INTENT(INOUT) :: numerator
         real(dp),INTENT(INOUT) :: denominator
         real(dp),INTENT(in) :: keff
-        ! First find the new fission source
-        do group = 1,groups
-            source_f_new(group,:)=this%fission_source(group,groups,phi,regions,boundary_tracker,total_steps,keff)
-        end do
+        real(dp),INTENT(IN),DIMENSION(:) :: x_coordinate
+        ! First find the new fission source produced by the flux from flux iterations
+        f_rate_new=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps,keff)
         ! Summed over nodes
         do i = 1,size(phi(1,:))
             ! First find numerator and denominator
             ! If at boundary use average values
             if (i == boundary_tracker(region_iterator) .and. i /= size(source(group,:))) then
                 ! Numerator for source
-                numerator=numerator+(((regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta())/2)*&
-                sum(source_f_new(:,i)))
+                numerator=numerator+((((regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta())/2)*&
+                x_coordinate(i)**regions(region_iterator)%get_geomtype())*(f_rate_new(i)))
                 ! denominator for source
-                denominator=denominator+(((regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta())/2)*&
-                sum(source_f(:,i)))
+                denominator=denominator+((((regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta())/2)*&
+                x_coordinate(i)**regions(region_iterator)%get_geomtype())*(f_rate(i)))
             ! IF not at boundary
             else
                 ! New fission source
-                numerator=numerator+(regions(region_iterator)%get_delta()*sum(source_f_new(:,i)))
+                numerator=numerator+(regions(region_iterator)%get_delta()*(f_rate_new(i))*x_coordinate(i)&
+                **regions(region_iterator)%get_geomtype())
                 ! Previous iteration's fission source
-                denominator=denominator+(regions(region_iterator)%get_delta()*sum(source_f(:,i)))
+                denominator=denominator+(regions(region_iterator)%get_delta()*(f_rate(i))*x_coordinate(i)&
+                **regions(region_iterator)%get_geomtype())
             end if
         end do
+        ! print*,'numerator=',numerator,'denominator=',denominator,'phi=',phi
     end subroutine k_iteration_sub
     subroutine fixed_source_iteration_sub(this,groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array)
         !
@@ -434,14 +398,13 @@ MODULE solver_class
             ! This needs to be done for all of the groups, so loop here
         end do
     end subroutine fixed_source_iteration_sub
-    function fission_source_fn(this,group,groups,phi,regions,boundary_tracker,total_steps,keff) result(fission_source)
+    function fission_reaction_rate_fn(this,groups,phi,regions,boundary_tracker,total_steps,keff) result(fission_source)
         !
         ! function to calculate fission source
         !
         IMPLICIT NONE
         class(solver),intent(in) :: this
         real(dp),INTENT(IN) :: keff
-        integer,INTENT(IN) :: group
         integer,INTENT(IN) :: groups
         integer,INTENT(IN) :: total_steps
         real(dp),INTENT(IN),DIMENSION(:,:) :: phi
@@ -463,8 +426,7 @@ MODULE solver_class
             if (i == boundary_tracker(region_iterator) .and. i /= size(fission_source)) then
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
-                    fission_source(i)=fission_source(i)+((phi(group_iterator,i)*&
-                    regions(region_iterator)%get_probability(group)/keff)*&
+                    fission_source(i)=fission_source(i)+(phi(group_iterator,i)*&
                     this%weighted_average(regions(region_iterator)%get_delta(),regions(region_iterator+1)%get_delta(),&
                     regions(region_iterator)%get_fission(group_iterator),&
                     regions(region_iterator+1)%get_fission(group_iterator)))
@@ -474,13 +436,12 @@ MODULE solver_class
             else
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
-                    fission_source(i)=fission_source(i)+(((phi(group_iterator,i))*&
-                    regions(region_iterator)%get_probability(group)/keff)*&
+                    fission_source(i)=fission_source(i)+((phi(group_iterator,i))*&
                     regions(region_iterator)%get_fission(group_iterator))
                 end do
             end if
         end do
-    end function fission_source_fn
+    end function fission_reaction_rate_fn
     function scatter_source_fn(this,group,groups,total_steps,phi,regions,boundary_tracker) result(scatter_source)
         !
         ! function to calculate scatter source
@@ -531,4 +492,70 @@ MODULE solver_class
             end if
         end do
     end function scatter_source_fn
+    subroutine x_coordinates_sub(this,total_steps,regions,boundary_tracker,x_coordinate)
+        !
+        ! Subroutine to calculate x_coordinates
+        !
+        IMPLICIT NONE
+        class(solver),intent(in) :: this
+        integer,INTENT(IN) :: total_steps
+        real(dp),INTENT(INOUT),DIMENSION(:) :: x_coordinate
+        type(region_1d),INTENT(IN),DIMENSION(:) :: regions
+        integer,INTENT(IN),DIMENSION(:) :: boundary_tracker
+        integer :: i
+        integer :: region_iterator
+        region_iterator=1
+        do i = 1, total_steps+1
+            if (i==1) then
+            x_coordinate(i) = regions(region_iterator)%get_start()
+            ! At a boundnary
+            else if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
+            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
+            region_iterator = region_iterator + 1
+            else
+            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
+            end if
+        end do
+    end subroutine x_coordinates_sub
+    real(dp) function normalise_fn(this,source_flux,groups,f_rate,phi,regions,boundary_tracker,total_steps,x_coordinate,keff)
+        !
+        ! function to calculate normalisation
+        !
+        IMPLICIT NONE
+        class(solver),intent(in) :: this
+        real(dp),intent(in),allocatable,DIMENSION(:,:) :: source_flux
+        integer,INTENT(IN) :: total_steps
+        real(dp),INTENT(INOUT),DIMENSION(:) :: x_coordinate
+        type(region_1d),INTENT(IN),DIMENSION(:) :: regions
+        integer,INTENT(IN),DIMENSION(:) :: boundary_tracker
+        real(dp),DIMENSION(:,:),INTENT(IN) :: phi
+        real(dp),DIMENSION(size(phi(:,1)),size(phi(1,:))) :: source
+        integer,INTENT(IN) :: groups
+        real(dp),INTENT(IN),DIMENSION(:) :: f_rate
+        real(dp),intent(in) :: keff
+        integer :: i
+        integer :: region_iterator
+        integer :: group
+        region_iterator=1
+        ! If fission source
+        if (.not.(allocated(source_flux))) then
+            normalise_fn=0
+            ! calculate fission source
+            do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
+                ! If at boundary
+                if (i == boundary_tracker(region_iterator)) region_iterator = region_iterator + 1
+                normalise_fn=normalise_fn+(0.5*(regions(region_iterator)%get_delta())*(((f_rate(i)/keff)*x_coordinate(i)&
+                **regions(region_iterator)%get_geomtype())+(f_rate(i+1)/keff)*x_coordinate(i+1)**regions(region_iterator)%get_geomtype()))
+            end do
+            ! Make correction for geometry
+            if(regions(region_iterator)%get_geomtype()==1) then! Cylindrical
+                normalise_fn=2*pi_dp*normalise_fn
+            else if (regions(region_iterator)%get_geomtype()==2) then! spherical
+                normalise_fn=4*pi_dp*normalise_fn
+            end if
+        ! If volumetric
+        else
+            normalise_fn=1
+        end if
+    end function normalise_fn
 end module solver_class
