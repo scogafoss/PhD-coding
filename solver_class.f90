@@ -21,6 +21,7 @@ MODULE solver_class
   !!      flux iteration needed changing, should iterate scatter source not    !!  
   !!      changing fission source until keff is changed.                       !!  
   !!    23/03/2021: Added function to calculate x_coordinate, and normalisation!!  
+  !!    24/03/2021: Corrected scatter_source to use correct group's flux       !!  
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -74,21 +75,24 @@ MODULE solver_class
         real(dp) :: convergence_criterion
         integer :: region_iterator
         integer :: total_steps
-        integer :: i
-        integer :: j
         integer :: group
         integer :: groups
-        integer :: group_iterator
         real(dp) :: numerator
         real(dp) :: denominator
         real(dp) :: normalisation
         real(dp),intent(inout),allocatable,dimension(:) :: x_coordinate ! Tracks x position in the system
         real(dp),INTENT(IN),allocatable,dimension(:,:) :: source_flux
         real(dp),allocatable,dimension(:) :: f_rate ! fission reaction ratesource
+        integer :: max_iteration
+        ! Max iteration
+        max_iteration = 200
         ! Convergence condition
         convergence_criterion = 1e-5
         ! Record where boundaries are, so can use correct values of fission and delta
         total_steps = 0
+        !
+        ! Track where region boundaries are
+        !
         do region_iterator =1,size(regions)
             total_steps = total_steps + regions(region_iterator)%get_steps()
             boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the edge of last boundary
@@ -106,7 +110,7 @@ MODULE solver_class
         allocate(x_coordinate(1:total_steps+1))
         call this%x_coordinates(total_steps,regions,boundary_tracker,x_coordinate) ! Calculates x coordinates in the problem
         !
-        ! If source flux is not allocated this is an eigenvalue problem
+        ! If source flux is not allocated, then this is an eigenvalue problem.
         !
         if (.not.(allocated(source_flux))) then
             !
@@ -115,15 +119,12 @@ MODULE solver_class
             phi_iterations=0
             k_iterations = 0
             do
+                if (phi_iterations>=max_iteration) stop 'Max iterations reached'
                 !
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
-                ! print *,'before flux iteration keff=',keff
-                ! print *,'before flux iteration phi(1,1)=',phi(1,1)
                 call this%flux_iteration(phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,boundary_tracker,&
                 convergence_criterion,total_steps,groups,f_rate)
-                ! print *,'after  flux iteration phi(1,1)=',phi(1,1)
-                ! print *,'after flux iteration keff=',keff
                 !
                 ! Now calculate next keff and store the previous
                 !
@@ -143,7 +144,7 @@ MODULE solver_class
                 ! If the convergence_criterion has been met, use the new keff and exit the loop
                 !
                 if (abs((keff-keff_temp)/keff_temp)<convergence_criterion) then
-                    f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps,keff)
+                    f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
                     do group=1,groups
                         source(group,:)=(f_rate*regions(1)%get_probability(group)/keff)+this%scatter_source(group,groups,&
                         total_steps,phi,regions,boundary_tracker)
@@ -160,8 +161,6 @@ MODULE solver_class
         else
             phi_iterations=0
             k_iterations = 0
-            ! print *,'source(2,101)',source(2,101)
-            ! print*,'scatter(1,2) =',regions(1)%get_scatter(1,2)
             !
             ! Do loop to perform iteration on energy groups (continues till convergence of phi)
             !
@@ -176,7 +175,7 @@ MODULE solver_class
         !
         ! Normalise the flux values
         !
-        normalisation = this%normalise(source_flux,groups,f_rate,phi,regions,boundary_tracker,total_steps,x_coordinate,keff)
+        normalisation = this%normalise(source_flux,f_rate,regions,boundary_tracker,total_steps,x_coordinate,keff)
         ! Now normalise flux
         phi = phi / normalisation
         print *, 'Number of flux iterations = ',phi_iterations
@@ -200,21 +199,19 @@ MODULE solver_class
         type(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp),INTENT(IN) :: convergence_criterion
-        integer :: region_iterator
         integer,INTENT(IN) :: total_steps
-        integer :: i
         integer :: group
         integer,INTENT(IN) :: groups
-        integer :: group_iterator
         real(dp),intent(inout),DIMENSION(:) :: f_rate ! Fission source
-        real(dp),DIMENSION(size(phi(:,1)),size(phi(1,:))) :: source_s ! Scatter source
+        real(dp),DIMENSION(size(phi(1,:))) :: source_s ! Scatter source
+        source=0
         !
         ! Do loop to perform iteration on energy groups (continues till convergence of phi)
         !
         !
         ! First find the fission reaction rate for this iteration
         !
-        f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps,keff)
+        f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
         !
         ! Now loop scatter till convergence
         !
@@ -226,24 +223,18 @@ MODULE solver_class
                 !
                 ! Correct source flux for fission, but only if there is no volumetric source
                 !
-                source_s(group,:)=this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
+                source_s=this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
                 !
                 ! Now have the total source so can find the phi iteration for current group
                 !
                 phi_temp(group,:)=phi(group,:)
-                ! print *, 'input into thomas', source(group,:)
-                source(group,:)=source_s(group,:)+(f_rate*(regions(1)%get_probability(group)/keff))
-                ! print*,'regions(1)%get_probability(group)/keff) = ',regions(1)%get_probability(group)/keff
-                ! print *,'To check source calculation: source(1,101)=',source(1,101),'phi(1,101)=',phi(1,101)
-                ! print *,'and: source(1,201)=',source(1,201),'phi(1,201)=',phi(1,201)
+                source(group,:)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
                 phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
                 ! This needs to be done for all of the groups, so loop here
             end do
             ! Now this iteration will continue until the fluxes converge
             phi_iterations=phi_iterations+1
-            ! if(abs(sum(phi(1,:))-sum(phi_temp(1,:)))<convergence_criterion) exit
             if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
-            ! print *,'phi ',phi(1,:)
             ! This exits the do loop for flux iterations
         end do
     end subroutine flux_iteration_sub
@@ -284,7 +275,8 @@ MODULE solver_class
         real(dp),INTENT(in) :: keff
         real(dp),INTENT(IN),DIMENSION(:) :: x_coordinate
         ! First find the new fission source produced by the flux from flux iterations
-        f_rate_new=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps,keff)
+        f_rate_new=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
+        if (sum(phi)<50000.AND.sum(phi)>5000) print*,'f rate =',f_rate,'f rate new=',f_rate_new,'flux =',phi
         ! Summed over nodes
         do i = 1,size(phi(1,:))
             ! First find numerator and denominator
@@ -351,13 +343,6 @@ MODULE solver_class
                             regions(region_iterator+1)%get_delta(),&
                             regions(region_iterator)%get_scatter(group_iterator,group),&
                             regions(region_iterator+1)%get_scatter(group_iterator,group))))
-                            ! source(group,i)=source(group,i)+((phi(group_iterator,i)/&
-                            ! (regions(region_iterator)%get_delta()+&
-                            ! regions(region_iterator+1)%get_delta()))*&
-                            ! ((regions(region_iterator)%get_scatter(group_iterator,group)*&
-                            ! regions(region_iterator)%get_delta())+&
-                            ! (regions(region_iterator+1)%get_scatter(group_iterator,group)*&
-                            ! regions(region_iterator+1)%get_delta())))
                         ! If in the same group no additional neutrons
                         else
                             source(group,i) = source(group,i)
@@ -370,16 +355,8 @@ MODULE solver_class
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
                         if (group_iterator /= group) then
-                            ! if(group==2 .and. i==1) then
-                            !     print*,'before: source(2,1)=',source(2,1),'phi_temp(1,1)=',phi_temp(1,1),'regions(1)%get_scatter(1,2)=',regions(1)%get_scatter(1,2)
-                            !     print*,'(in region:',region_iterator,')'
-                            ! end if
                             source(group,i) = source(group,i)+(phi(group_iterator,i)*&
                             ((regions(region_iterator)%get_scatter(group_iterator,group))))
-                            ! if(group==2 .and. i==1) then
-                            !     print*,'after: source(2,1)=',source(2,1),'phi_temp(1,1)=',phi_temp(1,1),'regions(1)%get_scatter(1,2)=',regions(1)%get_scatter(1,2)
-                            !     print*,'(in region:',region_iterator,')'
-                            ! end if
                             ! If in the same group only fission contributes
                         else
                             source(group,i) = source(group,i)
@@ -391,20 +368,16 @@ MODULE solver_class
             ! Now have the total source so can find the phi iteration for current group
             !
             phi_temp(group,:)=phi(group,:)
-            ! do i=1,size(source_temp)
-            !     source_temp(i)=source(group,i)
-            ! end do
             phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
             ! This needs to be done for all of the groups, so loop here
         end do
     end subroutine fixed_source_iteration_sub
-    function fission_reaction_rate_fn(this,groups,phi,regions,boundary_tracker,total_steps,keff) result(fission_source)
+    function fission_reaction_rate_fn(this,groups,phi,regions,boundary_tracker,total_steps) result(fission_source)
         !
         ! function to calculate fission source
         !
         IMPLICIT NONE
         class(solver),intent(in) :: this
-        real(dp),INTENT(IN) :: keff
         integer,INTENT(IN) :: groups
         integer,INTENT(IN) :: total_steps
         real(dp),INTENT(IN),DIMENSION(:,:) :: phi
@@ -472,7 +445,7 @@ MODULE solver_class
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                     ! If not in the same group then fine (ignores ingroup scatter)
                     if (group_iterator /= group) then
-                        scatter_source(i)=scatter_source(i)+(phi(group,i)*&
+                        scatter_source(i)=scatter_source(i)+(phi(group_iterator,i)*&
                         this%weighted_average(regions(region_iterator)%get_delta(),&
                         regions(region_iterator+1)%get_delta(),regions(region_iterator)%get_scatter(group_iterator,group),&
                         regions(region_iterator+1)%get_scatter(group_iterator,group)))
@@ -485,7 +458,7 @@ MODULE solver_class
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                     ! If not in the same group then fine
                     if (group_iterator /= group) then
-                        scatter_source(i)=scatter_source(i)+(phi(group,i)*&
+                        scatter_source(i)=scatter_source(i)+(phi(group_iterator,i)*&
                         regions(region_iterator)%get_scatter(group_iterator,group))
                     end if
                 end do
@@ -517,7 +490,7 @@ MODULE solver_class
             end if
         end do
     end subroutine x_coordinates_sub
-    real(dp) function normalise_fn(this,source_flux,groups,f_rate,phi,regions,boundary_tracker,total_steps,x_coordinate,keff)
+    real(dp) function normalise_fn(this,source_flux,f_rate,regions,boundary_tracker,total_steps,x_coordinate,keff)
         !
         ! function to calculate normalisation
         !
@@ -528,14 +501,10 @@ MODULE solver_class
         real(dp),INTENT(INOUT),DIMENSION(:) :: x_coordinate
         type(region_1d),INTENT(IN),DIMENSION(:) :: regions
         integer,INTENT(IN),DIMENSION(:) :: boundary_tracker
-        real(dp),DIMENSION(:,:),INTENT(IN) :: phi
-        real(dp),DIMENSION(size(phi(:,1)),size(phi(1,:))) :: source
-        integer,INTENT(IN) :: groups
         real(dp),INTENT(IN),DIMENSION(:) :: f_rate
         real(dp),intent(in) :: keff
         integer :: i
         integer :: region_iterator
-        integer :: group
         region_iterator=1
         ! If fission source
         if (.not.(allocated(source_flux))) then
@@ -545,7 +514,8 @@ MODULE solver_class
                 ! If at boundary
                 if (i == boundary_tracker(region_iterator)) region_iterator = region_iterator + 1
                 normalise_fn=normalise_fn+(0.5*(regions(region_iterator)%get_delta())*(((f_rate(i)/keff)*x_coordinate(i)&
-                **regions(region_iterator)%get_geomtype())+(f_rate(i+1)/keff)*x_coordinate(i+1)**regions(region_iterator)%get_geomtype()))
+                **regions(region_iterator)%get_geomtype())+(f_rate(i+1)/keff)*x_coordinate(i+1)&
+                **regions(region_iterator)%get_geomtype()))
             end do
             ! Make correction for geometry
             if(regions(region_iterator)%get_geomtype()==1) then! Cylindrical
