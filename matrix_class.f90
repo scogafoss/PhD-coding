@@ -31,7 +31,6 @@ CONTAINS
 ! Bound procedures
 PROCEDURE,PUBLIC :: set_variables => set_variables_sub ! Allows user to input desired matrix
 PROCEDURE,PUBLIC :: thomas_solve => thomas_solve_fn ! Performs a tridiagonal solve
-procedure,public :: power_iteration => power_iteration_sub ! Performs the power iteration for given nu*sigma_f (should still work if zero)
 PROCEDURE,PUBLIC :: get_a => get_a_fn ! Returns array a
 PROCEDURE,PUBLIC :: get_b => get_b_fn ! Returns array b
 PROCEDURE,PUBLIC :: get_c => get_c_fn ! Returns array c
@@ -39,7 +38,6 @@ END TYPE matrix
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
 private :: thomas_solve_fn
-private :: power_iteration_sub
 private :: get_a_fn
 private :: get_b_fn
 private :: get_c_fn
