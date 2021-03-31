@@ -47,6 +47,7 @@ private :: get_b_fn
 private :: get_c_fn
 ! Now add methods
 CONTAINS
+
 SUBROUTINE set_variables_sub(this, a, b, c)
   !
   ! Subroutine to set the variables
@@ -251,6 +252,7 @@ SUBROUTINE discretise_regions_sub(this, regions,group)
   !tridiagonal(2,:) = b
   !tridiagonal(3,:) = c
 END SUBROUTINE discretise_regions_sub
+
 function get_a_fn(this) result(get_a)
   !
   ! Function to return a
@@ -261,6 +263,7 @@ function get_a_fn(this) result(get_a)
   real(dp), allocatable, dimension(:) :: get_a
   get_a = this%a
 end function get_a_fn
+
 function get_b_fn(this) result(get_b)
   !
   ! Function to return b
@@ -271,6 +274,7 @@ function get_b_fn(this) result(get_b)
   real(dp), allocatable, dimension(:) :: get_b
   get_b = this%b
 end function get_b_fn
+
 function get_c_fn(this) result(get_c)
   !
   ! Function to return c
@@ -281,4 +285,5 @@ function get_c_fn(this) result(get_c)
   real(dp), allocatable, dimension(:) :: get_c
   get_c = this%c
 end function get_c_fn
+
 END MODULE nuclear_matrix_class
