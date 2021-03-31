@@ -4,6 +4,7 @@ module read_gem_file
 use precision_set
   implicit none
   contains
+
     subroutine read_gem(file_name,x,phi)
       character(len=*),intent(in) :: file_name
       real(dp), intent(out), allocatable, dimension(:,:) :: phi
@@ -62,4 +63,5 @@ use precision_set
       end do
       close(1)
     end subroutine read_gem
+    
 end module read_gem_file

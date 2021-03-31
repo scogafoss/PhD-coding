@@ -19,6 +19,7 @@ module initialise_variables
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 IMPLICIT NONE
 contains
+
   subroutine initialise(filename,regions,lines,materials,source_flux,groups)
     character(len=*), intent(in) :: filename
     type(region_1d), intent(inout), allocatable, dimension(:) :: regions
@@ -158,4 +159,5 @@ contains
       end do
     end if
   end subroutine initialise
+
 END module initialise_variables

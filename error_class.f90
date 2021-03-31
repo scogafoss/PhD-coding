@@ -34,6 +34,7 @@ private :: get_l2_fn
 PRIVATE :: l2_from_fluxes_fn
 ! Now add methods
 CONTAINS
+
 SUBROUTINE set_variables_sub(this, variable1, variable2)
   !
   ! Subroutine to set the variables
@@ -47,6 +48,7 @@ SUBROUTINE set_variables_sub(this, variable1, variable2)
   this%variable1 = variable1
   this%variable2 = variable2
 END SUBROUTINE set_variables_sub
+
 real(dp) FUNCTION get_l2_fn(this)
   !
   ! Function to return the l2 error from the two variable arrays
@@ -66,6 +68,7 @@ real(dp) FUNCTION get_l2_fn(this)
     write(*,*) 'Arrays must be of the same dimensions to calculate error.'
   end if
 END FUNCTION get_l2_fn
+
 real(dp) function l2_from_fluxes_fn(this,phi,x_phi,phi_gem,x_gem)
   !
   ! Function to return the l2 error from the gem flux and code flux
@@ -85,4 +88,5 @@ real(dp) function l2_from_fluxes_fn(this,phi,x_phi,phi_gem,x_gem)
   this%variable2=phi_gem
   l2_from_fluxes_fn = this%get_l2()
 end function l2_from_fluxes_fn
+
 END MODULE error_class

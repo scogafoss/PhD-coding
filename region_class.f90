@@ -36,6 +36,7 @@ private :: get_source_flux_fn
 private :: get_absorption_fn
 ! Now add methods
 CONTAINS
+
   subroutine set_material_id_sub(this,id)
     !
     ! Subroutine to set material id
@@ -47,6 +48,7 @@ CONTAINS
     ! Save data
     this%material_id = id
   end subroutine set_material_id_sub
+
   subroutine associate_material_sub(this,materials)
     !
     ! Subroutine to point to material
@@ -58,6 +60,7 @@ CONTAINS
     ! Save data
     this%materials => materials
   end subroutine associate_material_sub
+
   character(80) FUNCTION get_material_id_fn(this)
     !
     ! Function to return id
@@ -67,7 +70,8 @@ CONTAINS
     CLASS(region),INTENT(IN) :: this ! region object
     get_material_id_fn = this%material_id
   END FUNCTION get_material_id_fn
-FUNCTION get_source_flux_fn(this,index) result(value)
+
+  FUNCTION get_source_flux_fn(this,index) result(value)
     !
     ! Function to return source flux
     !
@@ -79,7 +83,8 @@ FUNCTION get_source_flux_fn(this,index) result(value)
     if(.not.associated(this%materials)) stop 'Error no material associated with region (source)'
     value = this%materials%get_source_flux(index)
   END FUNCTION get_source_flux_fn
-FUNCTION get_absorption_fn(this,index) result(value)
+
+  FUNCTION get_absorption_fn(this,index) result(value)
     !
     ! Function to return macroscopic absorption cross section
     !
@@ -91,4 +96,5 @@ FUNCTION get_absorption_fn(this,index) result(value)
     if(.not.associated(this%materials)) stop 'Error no material associated with region (absorption)'
     value = this%materials%get_absorption(index)
   END FUNCTION get_absorption_fn
+  
 end module region_class

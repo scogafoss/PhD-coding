@@ -70,6 +70,7 @@ private :: get_scatter_fn
 private :: get_probability_fn
 ! Now add methods
 CONTAINS
+
 SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
    right_albedo, surface_source, source_flux, absorption, fission, scatter)
   !
@@ -93,6 +94,7 @@ SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
   this%fission = fission
   this%scatter = scatter
 END SUBROUTINE set_variables_sub
+
 SUBROUTINE read_variables_sub(this, filename)
   !
   ! Subroutine to read in line data from input deck
@@ -214,6 +216,7 @@ SUBROUTINE read_variables_sub(this, filename)
   this%scatter = scatter
   close(10)
 END SUBROUTINE read_variables_sub
+
 character(80) FUNCTION get_left_boundary_fn(this)
   !
   ! Function to return left BC
@@ -223,6 +226,7 @@ character(80) FUNCTION get_left_boundary_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_left_boundary_fn = this%left_boundary
 END FUNCTION get_left_boundary_fn
+
 character(80) FUNCTION get_right_boundary_fn(this)
   !
   ! Function to return right BC
@@ -232,6 +236,7 @@ character(80) FUNCTION get_right_boundary_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_right_boundary_fn = this%right_boundary
 END FUNCTION get_right_boundary_fn
+
 real(dp) FUNCTION get_left_albedo_fn(this)
   !
   ! Function to return right BC
@@ -241,6 +246,7 @@ real(dp) FUNCTION get_left_albedo_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_left_albedo_fn = this%left_albedo
 END FUNCTION get_left_albedo_fn
+
 real(dp) FUNCTION get_right_albedo_fn(this)
   !
   ! Function to return right BC
@@ -250,6 +256,7 @@ real(dp) FUNCTION get_right_albedo_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_right_albedo_fn = this%right_albedo
 END FUNCTION get_right_albedo_fn
+
 real(dp) FUNCTION get_surface_source_fn(this)
   !
   ! Function to return right BC
@@ -259,6 +266,7 @@ real(dp) FUNCTION get_surface_source_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_surface_source_fn = this%surface_source
 END FUNCTION get_surface_source_fn
+
 FUNCTION get_source_flux_fn(this,index) result(value)
   !
   ! Function to return right BC
@@ -270,6 +278,7 @@ FUNCTION get_source_flux_fn(this,index) result(value)
   INTEGER,INTENT(IN) :: index
   value = this%source_flux(index)
 END FUNCTION get_source_flux_fn
+
 FUNCTION get_absorption_fn(this,index) result(value)
   !
   ! Function to return right BC
@@ -281,6 +290,7 @@ FUNCTION get_absorption_fn(this,index) result(value)
   INTEGER,INTENT(IN) :: index
   value = this%absorption(index)
 END FUNCTION get_absorption_fn
+
 subroutine set_id_sub (this, id)
   !
   ! Subroutine to define the name
@@ -291,6 +301,7 @@ subroutine set_id_sub (this, id)
   character(len=*),INTENT(IN) :: id
   this%id = id
 end subroutine set_id_sub
+
 character(80) FUNCTION get_id_fn(this)
   !
   ! Function to return right BC
@@ -300,6 +311,7 @@ character(80) FUNCTION get_id_fn(this)
   CLASS(material),INTENT(IN) :: this ! Line object
   get_id_fn = this%id
 END FUNCTION get_id_fn
+
 FUNCTION get_fission_fn(this,index) result(value)
   !
   ! Function to return nu-sigma_f
@@ -311,6 +323,7 @@ FUNCTION get_fission_fn(this,index) result(value)
   real(dp) :: value
   value = this%fission(index)
 END FUNCTION get_fission_fn
+
 function get_removal_fn(this,group) result(value)
   !
   ! Function to return removal cross section
@@ -331,6 +344,7 @@ function get_removal_fn(this,group) result(value)
   end do
   value = value + this%absorption(group)
 end function get_removal_fn
+
 FUNCTION get_scatter_fn(this,row,column) result(value)
   !
   ! Function to return scatter matrix
@@ -351,6 +365,7 @@ FUNCTION get_scatter_fn(this,row,column) result(value)
     end do
   end if
 END FUNCTION get_scatter_fn
+
 FUNCTION get_probability_fn(this,index) result(value)
   !
   ! Function to return fission probabilities of each group
@@ -362,4 +377,5 @@ FUNCTION get_probability_fn(this,index) result(value)
   real(dp) :: value
   value = this%fission_prob(index)
 END FUNCTION get_probability_fn
+
 end module material_class

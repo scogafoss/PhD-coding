@@ -51,6 +51,7 @@ MODULE solver_class
 
     ! Now add methods
     contains
+
     SUBROUTINE multigroup_solver_sub(this, phi, keff, regions, matrix_array,source_flux,x_coordinate)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
@@ -178,6 +179,7 @@ MODULE solver_class
         print *, 'Number of keff iterations = ',k_iterations
         print *,'normalisation = ',normalisation,'sum(s) = ', sum(source)
     END SUBROUTINE multigroup_solver_sub
+
     subroutine flux_iteration_sub(this,phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,boundary_tracker,&
         convergence_criterion,total_steps,groups,f_rate)
         !
@@ -234,6 +236,7 @@ MODULE solver_class
             ! This exits the do loop for flux iterations
         end do
     end subroutine flux_iteration_sub
+
     real(dp) function weighted_average_fn(this,weight1,weight2,variable1,variable2)
         !
         ! function to calculate weighted average
@@ -246,6 +249,7 @@ MODULE solver_class
         real(dp),INTENT(IN) :: variable2
         weighted_average_fn=((variable1*weight1)+(variable2*weight2))/(weight1+weight2)
     end function weighted_average_fn
+
     subroutine k_iteration_sub(this,phi,phi_temp,source,regions,boundary_tracker,region_iterator,groups,numerator,denominator,&
         f_rate,total_steps,keff,x_coordinate)
         !
@@ -296,6 +300,7 @@ MODULE solver_class
         end do
         ! print*,'numerator=',numerator,'denominator=',denominator,'phi=',phi
     end subroutine k_iteration_sub
+
     subroutine fixed_source_iteration_sub(this,groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array)
         !
         ! Subroutine to perfrom flux iteration on fixed source
@@ -368,6 +373,7 @@ MODULE solver_class
             ! This needs to be done for all of the groups, so loop here
         end do
     end subroutine fixed_source_iteration_sub
+
     function fission_reaction_rate_fn(this,groups,phi,regions,boundary_tracker,total_steps) result(fission_source)
         !
         ! function to calculate fission source
@@ -411,6 +417,7 @@ MODULE solver_class
             end if
         end do
     end function fission_reaction_rate_fn
+
     function scatter_source_fn(this,group,groups,total_steps,phi,regions,boundary_tracker) result(scatter_source)
         !
         ! function to calculate scatter source
@@ -461,6 +468,7 @@ MODULE solver_class
             end if
         end do
     end function scatter_source_fn
+
     subroutine x_coordinates_sub(this,total_steps,regions,boundary_tracker,x_coordinate)
         !
         ! Subroutine to calculate x_coordinates
@@ -486,6 +494,7 @@ MODULE solver_class
             end if
         end do
     end subroutine x_coordinates_sub
+
     real(dp) function normalise_fn(this,source_flux,f_rate,regions,boundary_tracker,total_steps,x_coordinate,keff)
         !
         ! function to calculate normalisation
@@ -524,4 +533,5 @@ MODULE solver_class
             normalise_fn=1
         end if
     end function normalise_fn
+    
 end module solver_class

@@ -33,6 +33,7 @@ PRIVATE :: set_variables_sub
 private :: get_interpolation_fn
 ! Now add methods
 CONTAINS
+
 SUBROUTINE set_variables_sub(this, x_desired, x_data, y_data)
   !
   ! Subroutine to set the variables
@@ -48,6 +49,7 @@ SUBROUTINE set_variables_sub(this, x_desired, x_data, y_data)
   this%x_data = x_data
   this%y_data = y_data
 END SUBROUTINE set_variables_sub
+
 FUNCTION get_interpolation_fn(this) result(y_desired)
   !
   ! Function to return interpolated y values as an array
@@ -84,4 +86,5 @@ FUNCTION get_interpolation_fn(this) result(y_desired)
     write (*,*) 'x_desired should be within the range of x_data'
   end if
 END FUNCTION get_interpolation_fn
+
 END MODULE maths_class

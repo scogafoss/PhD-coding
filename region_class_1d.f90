@@ -63,6 +63,7 @@ private :: get_probability_fn
 private :: get_delta_fn
 ! Now add methods
 CONTAINS
+
   subroutine set_line_id_sub(this,id)
     !
     ! Subroutine to set material id
@@ -74,6 +75,7 @@ CONTAINS
     ! Save data
     this%line_id = id
   end subroutine set_line_id_sub
+
   subroutine associate_line_sub(this,lines)
     !
     ! Subroutine to point to line
@@ -85,6 +87,7 @@ CONTAINS
     ! Save data
     this%lines => lines
   end subroutine associate_line_sub
+
   real(dp) FUNCTION get_start_fn(this)
     !
     ! Function to get start
@@ -95,6 +98,7 @@ CONTAINS
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
     get_start_fn = this%lines%get_start()
   END FUNCTION get_start_fn
+
   real(dp) FUNCTION get_length_fn(this)
     !
     ! Function to get length of region
@@ -105,6 +109,7 @@ CONTAINS
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
     get_length_fn = this%lines%get_length()
   END FUNCTION get_length_fn
+
   real(dp) FUNCTION get_delta_fn(this)
     !
     ! Function to get delta of region
@@ -115,6 +120,7 @@ CONTAINS
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
     get_delta_fn = this%lines%get_length()/this%lines%get_steps()
   END FUNCTION get_delta_fn
+
   integer FUNCTION get_steps_fn(this)
     !
     ! Function to get number of steps
@@ -125,6 +131,7 @@ CONTAINS
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
     get_steps_fn = this%lines%get_steps()
   END FUNCTION get_steps_fn
+
   integer FUNCTION get_geomtype_fn(this)
     !
     ! Function to return geomtype
@@ -135,6 +142,7 @@ CONTAINS
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
     get_geomtype_fn = this%lines%get_geomtype()
   END FUNCTION get_geomtype_fn
+
   character(80) FUNCTION get_line_id_fn(this)
     !
     ! Function to return id
@@ -144,6 +152,7 @@ CONTAINS
     CLASS(region_1d),INTENT(IN) :: this ! region object
     get_line_id_fn = this%line_id
   END FUNCTION get_line_id_fn
+
   character(80) FUNCTION get_left_boundary_fn(this)
     !
     ! Function to return left boundary
@@ -154,6 +163,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (left boundary)'
     get_left_boundary_fn = this%materials%get_left_boundary()
   END FUNCTION get_left_boundary_fn
+
   character(80) FUNCTION get_right_boundary_fn(this)
     !
     ! Function to return right boundary
@@ -164,6 +174,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (right boundary)'
     get_right_boundary_fn = this%materials%get_right_boundary()
   END FUNCTION get_right_boundary_fn
+
   real(dp) FUNCTION get_left_albedo_fn(this)
     !
     ! Function to return left albedo
@@ -174,6 +185,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (albedo left)'
     get_left_albedo_fn = this%materials%get_left_albedo()
   END FUNCTION get_left_albedo_fn
+
   real(dp) FUNCTION get_right_albedo_fn(this)
     !
     ! Function to return right albedo
@@ -184,6 +196,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (albedo right)'
     get_right_albedo_fn = this%materials%get_right_albedo()
   END FUNCTION get_right_albedo_fn
+
   real(dp) FUNCTION get_surface_source_fn(this)
     !
     ! Function to return surface flux
@@ -194,6 +207,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (surface source)'
     get_surface_source_fn = this%materials%get_surface_source()
   END FUNCTION get_surface_source_fn
+
   FUNCTION get_fission_fn(this,index) result(value)
     !
     ! Function to return nu sigma f
@@ -206,6 +220,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (fission)'
     value = this%materials%get_fission(index)
   END FUNCTION get_fission_fn
+
   FUNCTION get_scatter_fn(this,row,column) result(value)
     !
     ! Function to return scatter
@@ -223,6 +238,7 @@ CONTAINS
       value = this%materials%get_scatter(row)
     end if
   END FUNCTION get_scatter_fn
+
   FUNCTION get_removal_fn(this,group) result(value)
     !
     ! Function to return removal
@@ -235,6 +251,7 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (removal)'
     value = this%materials%get_removal(group)
   END FUNCTION get_removal_fn
+
   FUNCTION get_probability_fn(this,index) result(value)
     !
     ! Function to return fission probability
@@ -247,4 +264,5 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (probability)'
     value = this%materials%get_probability(index)
   END FUNCTION get_probability_fn
+  
 end module region_class_1d

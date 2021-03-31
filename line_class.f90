@@ -48,6 +48,7 @@ private :: get_id_fn
 private :: get_delta_fn
 ! Now add methods
 CONTAINS
+
 SUBROUTINE set_variables_sub(this, start, length, steps, geomtype)
   !
   ! Subroutine to set the variables
@@ -65,6 +66,7 @@ SUBROUTINE set_variables_sub(this, start, length, steps, geomtype)
   this%steps = steps
   this%geomtype = geomtype
 END SUBROUTINE set_variables_sub
+
 SUBROUTINE read_variables_sub(this, filename)
   !
   ! Subroutine to read in line data from input deck
@@ -122,6 +124,7 @@ SUBROUTINE read_variables_sub(this, filename)
   end do
   close(10)
 END SUBROUTINE read_variables_sub
+
 real(dp) FUNCTION get_start_fn(this)
   !
   ! Function to return start of region
@@ -131,6 +134,7 @@ real(dp) FUNCTION get_start_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_start_fn = this%start
 END FUNCTION get_start_fn
+
 real(dp) FUNCTION get_length_fn(this)
   !
   ! Function to return start of region
@@ -140,6 +144,7 @@ real(dp) FUNCTION get_length_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_length_fn = this%length
 END FUNCTION get_length_fn
+
 integer FUNCTION get_steps_fn(this)
   !
   ! Function to return start of region
@@ -149,6 +154,7 @@ integer FUNCTION get_steps_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_steps_fn = this%steps
 END FUNCTION get_steps_fn
+
 integer FUNCTION get_geomtype_fn(this)
   !
   ! Function to return start of region
@@ -158,6 +164,7 @@ integer FUNCTION get_geomtype_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_geomtype_fn = this%geomtype
 END FUNCTION get_geomtype_fn
+
 subroutine set_id_sub (this, id)
   !
   ! Subroutine to define the name
@@ -166,6 +173,7 @@ subroutine set_id_sub (this, id)
   character(len=*),INTENT(IN) :: id
   this%id = id
 end subroutine set_id_sub
+
 character(80) FUNCTION get_id_fn(this)
   !
   ! Function to return right BC
@@ -175,6 +183,7 @@ character(80) FUNCTION get_id_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_id_fn = this%id
 END FUNCTION get_id_fn
+
 real(dp) FUNCTION get_delta_fn(this)
   !
   ! Function to return delta
@@ -184,4 +193,5 @@ real(dp) FUNCTION get_delta_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_delta_fn = this%length/this%steps
 END FUNCTION get_delta_fn
+
 END MODULE line_class
