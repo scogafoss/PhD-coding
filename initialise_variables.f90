@@ -1,7 +1,4 @@
 module initialise_variables
-  use precision_set
-  use line_class
-  use material_class
   use region_class_1d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: initialise_variables.f90                                       !!

@@ -1,7 +1,4 @@
 MODULE matrix_class
-  use precision_set
-  use line_class
-  use material_class
   use region_class_1d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: matrix_class.f90                                               !!

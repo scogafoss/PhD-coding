@@ -1,5 +1,5 @@
 MODULE error_class
-  use precision_set
+  use maths_class
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: error_class.f90                                                !!
 !!                                                                           !!
@@ -26,10 +26,12 @@ CONTAINS
 ! Bound procedures
 PROCEDURE,PUBLIC :: set_variables => set_variables_sub
 PROCEDURE,PUBLIC :: get_l2 => get_l2_fn
+procedure,public :: l2_from_fluxes => l2_from_fluxes_fn
 END TYPE error
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
 private :: get_l2_fn
+PRIVATE :: l2_from_fluxes_fn
 ! Now add methods
 CONTAINS
 SUBROUTINE set_variables_sub(this, variable1, variable2)
@@ -64,4 +66,23 @@ real(dp) FUNCTION get_l2_fn(this)
     write(*,*) 'Arrays must be of the same dimensions to calculate error.'
   end if
 END FUNCTION get_l2_fn
+real(dp) function l2_from_fluxes_fn(this,phi,x_phi,phi_gem,x_gem)
+  !
+  ! Function to return the l2 error from the gem flux and code flux
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(error),INTENT(INOUT) :: this ! Error object
+  real(dp),INTENT(IN),DIMENSION(:) :: phi
+  real(dp),INTENT(IN),DIMENSION(:) :: phi_gem
+  real(dp),INTENT(IN),DIMENSION(:) :: x_gem
+  real(dp),INTENT(IN),DIMENSION(:) :: x_phi
+  real(dp),DIMENSION(size(phi_gem)) :: phi_interpolated
+  type(maths) :: m1
+  call m1%set_variables(x_gem,x_phi,phi)
+  phi_interpolated=m1%get_interpolation()
+  this%variable1=phi_interpolated
+  this%variable2=phi_gem
+  l2_from_fluxes_fn = this%get_l2()
+end function l2_from_fluxes_fn
 END MODULE error_class

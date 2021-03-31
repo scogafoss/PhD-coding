@@ -1,13 +1,8 @@
 program test_multigroup
-    use precision_set
     use read_gem_file
-    use line_class
-    use material_class
-    use region_class_1d
     use error_class
     use maths_class
     use nuclear_matrix_class
-    use matrix_class
     use initialise_variables
     use solver_class
     implicit none
@@ -56,5 +51,8 @@ program test_multigroup
         write(70,*) gem_x(i),gem_phi(:,i)
     end do
     close (70)
+    do i = 1,groups
+        print *,'group',i,'L2 = ',error1%l2_from_fluxes(finite_phi(i,:),x_coordinate,gem_phi(i,:),gem_x), 'delta = ',x_coordinate(2)-x_coordinate(1)
+    end do
   end program test_multigroup
   

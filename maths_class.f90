@@ -40,9 +40,9 @@ SUBROUTINE set_variables_sub(this, x_desired, x_data, y_data)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(maths) :: this ! Maths object
-  real(dp),INTENT(IN),allocatable, dimension(:) :: x_desired
-  real(dp),INTENT(IN),allocatable,dimension(:) :: x_data
-  real(dp),INTENT(IN),allocatable,dimension(:) :: y_data
+  real(dp),INTENT(IN), dimension(:) :: x_desired
+  real(dp),INTENT(IN),dimension(:) :: x_data
+  real(dp),INTENT(IN),dimension(:) :: y_data
   ! Save data
   this%x_desired = x_desired
   this%x_data = x_data
@@ -54,28 +54,32 @@ FUNCTION get_interpolation_fn(this) result(y_desired)
   !
   IMPLICIT NONE
   ! Declare calling arguments
-  CLASS(maths),INTENT(IN) :: this ! Maths object
+  CLASS(maths),INTENT(INOUT) :: this ! Maths object
   real(dp), dimension(size(this%x_desired)) :: y_desired
   ! Get interpolation
   integer :: x_iterator ! Iterates over the desired x values.
   integer :: data_iterator ! Iterates over the x data valus to interpolate.
+  print *,'test = ',abs(MAXVAL(this%x_desired)-maxval(this%x_data)), 'should be less than',abs(0.5*(this%x_data(1)-this%x_data(2)))
   ! Check min and max x_desired are allowed
-  if ((minval(this%x_desired) >= minval(this%x_data)) .and. (maxval(this%x_desired) <= maxval(this%x_data))) then
-    ! loop over the desired x values.
-    do x_iterator = 1,size(this%x_desired)
-      ! Increments the data set of x values until reaches point above desired point.
-      data_iterator = 1 ! reset to one before iterating again.
-      do while (this%x_desired(x_iterator) > this%x_data(data_iterator))
-        data_iterator = data_iterator + 1
+  if (((minval(this%x_desired) >= minval(this%x_data)) .and. (maxval(this%x_desired) <= maxval(this%x_data)))&
+   .or. (abs(minval(this%x_desired)-minval(this%x_data))<abs(0.5*(this%x_data(1)-this%x_data(2)))) &
+   .or. (abs(maxval(this%x_desired)-maxval(this%x_data))<abs(0.5*(this%x_data(1)-this%x_data(2)))) ) then
+      ! loop over the desired x values.
+      do x_iterator = 1,size(this%x_desired)
+        ! Increments the data set of x values until reaches point above desired point.
+        data_iterator = 1 ! reset to one before iterating again.
+        do while (this%x_desired(x_iterator) > this%x_data(data_iterator))
+          if(data_iterator==size(this%x_data)) exit
+          data_iterator = data_iterator + 1
+        end do
+        ! Deals with the interpolation.
+        if (this%x_desired(x_iterator) == this%x_data(data_iterator)) then ! If the desired point is identical to one provided then immediately set y_desired.
+          y_desired(x_iterator) = this%y_data(data_iterator)
+        else ! If desired point is between two points then interpolate
+          y_desired(x_iterator) = ((this%x_desired(x_iterator)-this%x_data(data_iterator-1))/(this%x_data(data_iterator) &
+          -this%x_data(data_iterator-1)))*(this%y_data(data_iterator)-this%y_data(data_iterator-1))+this%y_data(data_iterator-1)
+        end if
       end do
-      ! Deals with the interpolation.
-      if (this%x_desired(x_iterator) == this%x_data(data_iterator)) then ! If the desired point is identical to one provided then immediately set y_desired.
-        y_desired(x_iterator) = this%y_data(data_iterator)
-      else ! If desired point is between two points then interpolate
-        y_desired(x_iterator) = ((this%x_desired(x_iterator)-this%x_data(data_iterator-1))/(this%x_data(data_iterator) &
-        -this%x_data(data_iterator-1)))*(this%y_data(data_iterator)-this%y_data(data_iterator-1))+this%y_data(data_iterator-1)
-      end if
-    end do
   else
     write (*,*) 'x_desired should be within the range of x_data'
   end if

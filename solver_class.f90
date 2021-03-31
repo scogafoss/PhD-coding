@@ -1,8 +1,4 @@
 MODULE solver_class
-    use precision_set
-    use material_class
-    use line_class
-    use region_class_1d
     use matrix_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: solver_class.f90                                               !!
