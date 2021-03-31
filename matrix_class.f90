@@ -45,6 +45,7 @@ private :: get_b_fn
 private :: get_c_fn
 ! Now add methods
 CONTAINS
+
 SUBROUTINE set_variables_sub(this, a, b, c)
   !
   ! Subroutine to set the variables
@@ -60,6 +61,7 @@ SUBROUTINE set_variables_sub(this, a, b, c)
   this%b = b
   this%c = c
 END SUBROUTINE set_variables_sub
+
 FUNCTION thomas_solve_fn(this, source_flux) result(solution)
   !
   ! Function to return solution to Ax=B matrix equation, whre A is tridiagonal
@@ -91,166 +93,7 @@ FUNCTION thomas_solve_fn(this, source_flux) result(solution)
     END IF
   END DO
 END FUNCTION thomas_solve_fn
-SUBROUTINE power_iteration_sub(this, phi, keff, regions)
-  !
-  ! Subroutine to perfrom power iteration (assumes no volumetric_source)
-  !
-  IMPLICIT NONE
-  ! Declare calling arguments
-  CLASS(matrix) :: this ! Matrix object
-  integer :: iterations
-  real(dp),INTENT(inout),allocatable,dimension(:) :: phi
-  real(dp),allocatable,dimension(:) :: phi_temp ! phi from the previous iteration
-  real(dp),INTENT(inout) :: keff
-  real(dp) :: keff_temp !from the previous iteration
-  real(dp),allocatable,dimension(:) :: source
-  type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-  integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
-  real(dp) :: convergence_criterion
-  integer :: region_iterator
-  integer :: total_steps
-  integer :: i
-  integer :: j
-  real(dp) :: numerator
-  real(dp) :: denominator
-  real(dp) :: normalisation
-  real(dp),allocatable,dimension(:) :: x_coordinate ! Tracks x position in the system
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEMPORARY FOR JACK
-  open(90, file ='x_y_iterations.txt')
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! Convergence condition
-  convergence_criterion = 1e-5
-  ! Record where boundaries are, so can use correct values of fission and delta
-  total_steps = 0
-  do region_iterator =1,size(regions)
-    total_steps = total_steps + regions(region_iterator)%get_steps()
-    boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the last boundary
-  end do
-  allocate(source(1:total_steps+1))
-  ! Initial guesses
-  keff = 1
-  allocate(phi(1:total_steps+1))
-  phi = 1
-  allocate(x_coordinate(1:total_steps+1))
-  !
-  ! Do loop to perform power iteration
-  !
-  iterations=0
-  do
-    !
-    ! Correct source flux for fission
-    !
-    region_iterator=1
-    do i =1,size(source)
-      ! If at a boundary need to average the source flux
-      if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
-        source(i) = (1/keff)*((((regions(region_iterator)%get_fission(1)*(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))+(regions(region_iterator+1)%get_fission(1)*&
-        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+&
-        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi(i))
-        region_iterator=region_iterator+1
-      ! If not at boundary
-      else
-        source(i)=(1/keff)*((regions(region_iterator)%get_fission(1))*phi(i))
-      end if
-    end do
-    !
-    ! Calculate the next phi with thomas algorithm and store the previous
-    !
-    phi_temp=phi
-    phi=this%thomas_solve(source)
 
-    !
-    ! Calculate next keff and store the previous
-    !
-    keff_temp=keff
-    numerator = 0
-    denominator = 0
-    region_iterator=1
-    do i = 1,size(phi)
-      ! First find numerator and denominator
-      ! If at boundary use average values
-      if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
-        ! Numerator for source
-        numerator = numerator + (((((regions(region_iterator)%get_fission(1)*(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))+(regions(region_iterator+1)%get_fission(1)*&
-        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))/&
-        ((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+&
-        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi(i))*&
-        (((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps()))/2))
-        ! denominator for source
-        denominator = denominator + (((((regions(region_iterator)%get_fission(1)*(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))+(regions(region_iterator+1)%get_fission(1)*(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps())))/((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+&
-        (regions(region_iterator+1)%get_length()/regions(region_iterator+1)%get_steps())))*phi_temp(i))*&
-        (((regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())+(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps()))/2))
-        region_iterator=region_iterator+1
-      ! IF not at boundary
-      else
-        numerator = numerator + (regions(region_iterator)%get_fission(1)*phi(i)*(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))
-        denominator = denominator + (regions(region_iterator)%get_fission(1)*phi_temp(i)*(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))
-      end if
-    end do
-    iterations = iterations +1
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEMPORARY FOR JACK
-    do j=1,size(phi)
-      write(90,*) phi(j)
-    end do
-    write(90,*) 'Iteration',iterations
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEMPORARY FOR JACK
-    ! Calculate the new keff
-    keff=keff_temp * (numerator/denominator)
-    ! If the convergence_criterion has been met, exit the loop
-    ! print *,'test converge k1-k0/k0 = ',abs((keff-keff_temp)/keff_temp)
-    if (abs((keff-keff_temp)/keff_temp)<convergence_criterion) exit
-  end do
-  !
-  ! Normalise the flux values
-  !
-  ! First track the x coordinate for each region
-  region_iterator=1
-  do i = 1, total_steps+1
-    if (i==1) then
-      x_coordinate(i) = regions(region_iterator)%get_start()
-    ! At a boundnary
-    else if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
-      x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
-      region_iterator = region_iterator + 1
-    else
-      x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
-    end if
-  end do
-  ! Now calculate the normalisation
-  region_iterator=1
-  do i =1,total_steps ! note ther are total_steps+1 nodes so this goes to second to last node, which is fine as it integrates over steps.
-    ! If at boundary
-    if (i == boundary_tracker(region_iterator) .and. i /= size(this%b)) then
-      region_iterator = region_iterator + 1
-      normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-      ((source(i)*(x_coordinate(i)**regions(region_iterator)%get_geomtype()))+source(i+1)*(x_coordinate(i+1)&
-      **regions(region_iterator)%get_geomtype())))
-    else
-      normalisation=normalisation+(0.5*(regions(region_iterator)%get_length()/regions(region_iterator)%get_steps())*&
-      ((source(i)*x_coordinate(i)**regions(region_iterator)%get_geomtype())+source(i+1)*x_coordinate(i+1)&
-      **regions(region_iterator)%get_geomtype()))
-    end if
-  end do
-  ! Make correction for geometry
-  if(regions(region_iterator)%get_geomtype()==1) then! Cylindrical
-    normalisation=2*pi_dp*normalisation
-  else if (regions(region_iterator)%get_geomtype()==2) then! spherical
-    normalisation=4*pi_dp*normalisation
-  end if
-  ! Now normalise flux
-  phi = phi / normalisation
-  print *, 'Number of iterations = ',iterations
-  print *,'normalisation = ',normalisation,'sum(s) = ', sum(source)
-END SUBROUTINE power_iteration_sub
 function get_a_fn(this) result(get_a)
   !
   ! Function to return a
@@ -261,6 +104,7 @@ function get_a_fn(this) result(get_a)
   real(dp), allocatable, dimension(:) :: get_a
   get_a = this%a
 end function get_a_fn
+
 function get_b_fn(this) result(get_b)
   !
   ! Function to return b
@@ -271,6 +115,7 @@ function get_b_fn(this) result(get_b)
   real(dp), allocatable, dimension(:) :: get_b
   get_b = this%b
 end function get_b_fn
+
 function get_c_fn(this) result(get_c)
   !
   ! Function to return c
@@ -281,4 +126,5 @@ function get_c_fn(this) result(get_c)
   real(dp), allocatable, dimension(:) :: get_c
   get_c = this%c
 end function get_c_fn
+
 END MODULE matrix_class
