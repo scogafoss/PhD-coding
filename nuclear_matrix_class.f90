@@ -32,7 +32,6 @@ real(dp), allocatable, dimension(:) :: c ! Top (rightmost) diagonal             
 CONTAINS
 ! Bound procedures
 PROCEDURE,PUBLIC :: set_variables => set_variables_sub ! Allows user to input desired matrix
-procedure,public :: discretise => discretise_sub ! Calculates the variables based on input values
 procedure,public :: discretise_regions => discretise_regions_sub ! Discretises input region array.
 PROCEDURE,PUBLIC :: get_a => get_a_fn ! Returns array a
 PROCEDURE,PUBLIC :: get_b => get_b_fn ! Returns array b
@@ -40,7 +39,6 @@ PROCEDURE,PUBLIC :: get_c => get_c_fn ! Returns array c
 END TYPE nuclear_matrix
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
-private :: discretise_sub
 private :: discretise_regions_sub
 private :: get_a_fn
 private :: get_b_fn

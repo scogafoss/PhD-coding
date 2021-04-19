@@ -1,12 +1,6 @@
 program test
     use precision_set
-    use line_class
-    use material_class
-    use region_class
-    use region_class_1d
-    use matrix_class
     implicit none
-    type(matrix) :: m
     real(dp),allocatable,dimension(:)::a
     real(dp),allocatable,dimension(:)::b
     real(dp),allocatable,dimension(:)::c
@@ -21,6 +15,6 @@ program test
     c=3
     c(3)=0
     s=4
-    call m%set_variables(a,b,c)
-    print *,m%thomas_solve(s)
+    print *,c(2:0)
+    print*,'test'
 end program test

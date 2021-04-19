@@ -112,7 +112,7 @@ contains
     total_nodes = total_nodes +1
     ! If the source type is volumetric, allocate the source flux, otherwise don't allocate, use to check later.
     if (fission_or_volumetric == "v") then
-      allocate(source_flux(1:total_groups,1:total_nodes))
+      allocate(source_flux(1:total_nodes,1:total_groups))
     end if
     ! If the source flux has been allocated, then fill it.
     if (ALLOCATED(source_flux)) then
@@ -127,10 +127,10 @@ contains
               source_tracker=source_tracker+1
               ! If not at boundary node
               if (j/=regions(i)%get_steps()+1) THEN
-                source_flux(k,source_tracker) = regions(i)%get_source_flux(k)
+                source_flux(source_tracker,k) = regions(i)%get_source_flux(k)
               ! If at boundary
               else
-                source_flux(k,source_tracker) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
+                source_flux(source_tracker,k) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
                 +(regions(i+1)%get_source_flux(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
                 /((regions(i)%get_length()/regions(i)%get_steps())+(regions(i+1)%get_length()/regions(i+1)%get_steps()))
               end if
@@ -139,17 +139,17 @@ contains
         else if (i == size(regions)) then
             do j = 1, regions(i)%get_steps()
               source_tracker = source_tracker + 1
-              source_flux(k,source_tracker) = regions(i)%get_source_flux(k)
+              source_flux(source_tracker,k) = regions(i)%get_source_flux(k)
             end do
           ! For internal regions
           else
             do j = 1, regions(i)%get_steps()
               source_tracker = source_tracker + 1
               if (j/=regions(i)%get_steps()) THEN
-                source_flux(k,source_tracker) = regions(i)%get_source_flux(k)
+                source_flux(source_tracker,k) = regions(i)%get_source_flux(k)
               ! If at boundary
               else
-                source_flux(k,source_tracker) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
+                source_flux(source_tracker,k) = ((regions(i)%get_source_flux(k)*regions(i)%get_length()/regions(i)%get_steps())&
                 +(regions(i+1)%get_source_flux(k)*regions(i+1)%get_length()/regions(i+1)%get_steps()))&
                 /((regions(i)%get_length()/regions(i)%get_steps())+(regions(i+1)%get_length()/regions(i+1)%get_steps()))
               end if

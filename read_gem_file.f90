@@ -36,7 +36,7 @@ use precision_set
       rewind (unit = 1)
       ! Now set allocate the data from the file.
       ! First set the arrays to correct size.
-      allocate(phi(1:groups,1:x_length)) ! x and phi length the same
+      allocate(phi(1:x_length,1:groups)) ! x and phi length the same
       allocate(x(1:x_length))
       ! Now loop over file.
       open(1,file=file_name,iostat=status)
@@ -56,7 +56,7 @@ use precision_set
             backspace (unit = 1)
           end do
           do i = 1,groups
-            read(1,*,iostat=status) line,phi(i,phi_pos) ! phi value in the 2nd column
+            read(1,*,iostat=status) line,phi(phi_pos,i) ! phi value in the 2nd column
           end do
           read(1,*,iostat=status) !need to then skip the total otherwise will loop forever
         end if

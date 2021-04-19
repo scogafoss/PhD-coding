@@ -1,7 +1,6 @@
 program test_multigroup
     use read_gem_file
     use error_class
-    use maths_class
     use nuclear_matrix_class
     use initialise_variables
     use solver_class
@@ -23,7 +22,6 @@ program test_multigroup
     real(dp) :: keff
     type(solver) :: solve
     character(150) :: gem_file
-    type(maths) :: maths1
     integer :: m
     integer :: k
     integer :: i
@@ -34,7 +32,7 @@ program test_multigroup
     London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     call initialise(filename,regions,lines,materials,source_flux,groups)
     ALLOCATE(matrix_array(1:groups))
-    do i = 1, size(matrix_array) ! Does this work???????????????
+    do i = 1, size(matrix_array) 
         call nuc1%discretise_regions(regions,i) ! ith group
         call matrix_array(i)%set_variables(nuc1%get_a(),nuc1%get_b(),nuc1%get_c())
     end do
@@ -43,16 +41,16 @@ program test_multigroup
     open(60, file ='x_y1_y2.txt')
     open(70, file ='xgem_ygem1_ygem2.txt')
     do i=1,size(x_coordinate)
-        write(60,*) x_coordinate(i), finite_phi(:,i)
+        write(60,*) x_coordinate(i), finite_phi(i,:)
     end do
     close (60)
     call read_gem(gem_file,gem_x,gem_phi)
     do i=1,size(gem_x)
-        write(70,*) gem_x(i),gem_phi(:,i)
+        write(70,*) gem_x(i),gem_phi(i,:)
     end do
     close (70)
     do i = 1,groups
-        print *,'group',i,'L2 = ',error1%l2_from_fluxes(finite_phi(i,:),x_coordinate,gem_phi(i,:),gem_x), 'delta = ',x_coordinate(2)-x_coordinate(1)
+        print *,'group',i,'L2 = ',error1%l2_from_fluxes(finite_phi(:,i),x_coordinate,gem_phi(:,i),gem_x), 'delta = ',x_coordinate(2)-x_coordinate(1)
     end do
   end program test_multigroup
   

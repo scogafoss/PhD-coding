@@ -35,8 +35,8 @@ start, length, steps, ref (lxx), dim (x/r,y,z)
 Lines
 Scheme: box
 Num: 1
-0.0 0.5 15 l01 1
-0.5 0.5 15 l02 1
+0.0 0.5 100 l01 1
+0.5 0.5 100 l02 1
 
 -----------------------------------------------
 FluxType

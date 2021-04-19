@@ -60,7 +60,7 @@ MODULE solver_class
         ! Declare calling arguments
         CLASS(solver),INTENT(IN) :: this ! Matrix object
         integer :: phi_iterations,k_iterations
-        real(dp),INTENT(inout),allocatable,dimension(:,:) :: phi ! Rows are groups, columns are nodes
+        real(dp),INTENT(inout),allocatable,dimension(:,:) :: phi ! Rows are nodes, columns are groups
         real(dp),allocatable,dimension(:,:) :: phi_temp ! phi from the previous iteration
         real(dp),INTENT(inout) :: keff
         real(dp) :: keff_temp !from the previous iteration
@@ -94,14 +94,14 @@ MODULE solver_class
             total_steps = total_steps + regions(region_iterator)%get_steps()
             boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the edge of last boundary
         end do
-        allocate(source(1:size(matrix_array),1:total_steps+1))
+        groups = size(matrix_array)
+        allocate(source(1:total_steps+1,1:groups))
         allocate(f_rate(1:total_steps+1))
         allocate(source_temp(1:total_steps+1))
-        groups = size(matrix_array)
         ! Initial guesses
         keff = 1
-        allocate(phi(1:size(matrix_array),1:total_steps+1))
-        allocate(phi_temp(1:size(matrix_array),1:total_steps+1))
+        allocate(phi(1:total_steps+1,1:groups))
+        allocate(phi_temp(1:total_steps+1,1:groups))
         phi = 1
         phi_temp=1
         allocate(x_coordinate(1:total_steps+1))
@@ -143,11 +143,11 @@ MODULE solver_class
                 if (abs((keff-keff_temp)/keff_temp)<convergence_criterion) then
                     f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
                     do group=1,groups
-                        source(group,:)=(f_rate*regions(1)%get_probability(group)/keff)+this%scatter_source(group,groups,&
+                        source(:,group)=(f_rate*regions(1)%get_probability(group)/keff)+this%scatter_source(group,groups,&
                         total_steps,phi,regions,boundary_tracker)
                     end do
                     do group=1,groups
-                        phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
+                        phi(:,group)=matrix_array(group)%thomas_solve(source(:,group))
                     end do
                     exit
                 end if
@@ -201,7 +201,7 @@ MODULE solver_class
         integer :: group
         integer,INTENT(IN) :: groups
         real(dp),intent(inout),DIMENSION(:) :: f_rate ! Fission source
-        real(dp),DIMENSION(size(phi(1,:))) :: source_s ! Scatter source
+        real(dp),DIMENSION(size(phi(:,1))) :: source_s ! Scatter source
         source=0
         !
         ! Do loop to perform iteration on energy groups (continues till convergence of phi)
@@ -225,9 +225,9 @@ MODULE solver_class
                 !
                 ! Now have the total source so can find the phi iteration for current group
                 !
-                phi_temp(group,:)=phi(group,:)
-                source(group,:)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
-                phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
+                phi_temp(:,group)=phi(:,group)
+                source(:,group)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
+                phi(:,group)=matrix_array(group)%thomas_solve(source(:,group))
                 ! This needs to be done for all of the groups, so loop here
             end do
             ! Now this iteration will continue until the fluxes converge
@@ -281,7 +281,7 @@ MODULE solver_class
         do i = 1,size(phi(1,:))
             ! First find numerator and denominator
             ! If at boundary use average values
-            if (i == boundary_tracker(region_iterator) .and. i /= size(source(group,:))) then
+            if (i == boundary_tracker(region_iterator) .and. i /= size(source(:,group))) then
                 ! Numerator for source
                 numerator=numerator+((((regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta())/2)*&
                 x_coordinate(i)**regions(region_iterator)%get_geomtype())*(f_rate_new(i)))
@@ -334,19 +334,19 @@ MODULE solver_class
             ! Loop for each node
             do i = 1, total_steps +1
                 ! If at boundary need to average
-                if (i == boundary_tracker(region_iterator) .and. i /= size(source(group,:))) then
+                if (i == boundary_tracker(region_iterator) .and. i /= size(source(:,group))) then
                     ! Loop for each group to sum the total scatter
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
                         if (group_iterator /= group) then
-                            source(group,i)=source(group,i)+(phi(group_iterator,i)*&
+                            source(i,group)=source(i,group)+(phi(i,group_iterator)*&
                             (this%weighted_average(regions(region_iterator)%get_delta(),&
                             regions(region_iterator+1)%get_delta(),&
                             regions(region_iterator)%get_scatter(group_iterator,group),&
                             regions(region_iterator+1)%get_scatter(group_iterator,group))))
                         ! If in the same group no additional neutrons
                         else
-                            source(group,i) = source(group,i)
+                            source(i,group) = source(i,group)
                         end if
                     end do
                     region_iterator=region_iterator+1
@@ -356,11 +356,11 @@ MODULE solver_class
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
                         if (group_iterator /= group) then
-                            source(group,i) = source(group,i)+(phi(group_iterator,i)*&
+                            source(i,group) = source(i,group)+(phi(i,group_iterator)*&
                             ((regions(region_iterator)%get_scatter(group_iterator,group))))
                             ! If in the same group only fission contributes
                         else
-                            source(group,i) = source(group,i)
+                            source(i,group) = source(i,group)
                         end if
                     end do
                 end if
@@ -368,8 +368,8 @@ MODULE solver_class
             !
             ! Now have the total source so can find the phi iteration for current group
             !
-            phi_temp(group,:)=phi(group,:)
-            phi(group,:)=matrix_array(group)%thomas_solve(source(group,:))
+            phi_temp(:,group)=phi(:,group)
+            phi(:,group)=matrix_array(group)%thomas_solve(source(:,group))
             ! This needs to be done for all of the groups, so loop here
         end do
     end subroutine fixed_source_iteration_sub
@@ -385,7 +385,7 @@ MODULE solver_class
         real(dp),INTENT(IN),DIMENSION(:,:) :: phi
         type(region_1d),INTENT(IN),DIMENSION(:) :: regions
         integer,INTENT(IN),DIMENSION(:) :: boundary_tracker
-        real(dp),dimension(size(phi(1,:))) :: fission_source ! Fission source
+        real(dp),dimension(size(phi(:,1))) :: fission_source ! Fission source
         integer :: group_iterator
         integer :: i
         integer :: region_iterator
@@ -401,7 +401,7 @@ MODULE solver_class
             if (i == boundary_tracker(region_iterator) .and. i /= size(fission_source)) then
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
-                    fission_source(i)=fission_source(i)+(phi(group_iterator,i)*&
+                    fission_source(i)=fission_source(i)+(phi(i,group_iterator)*&
                     this%weighted_average(regions(region_iterator)%get_delta(),regions(region_iterator+1)%get_delta(),&
                     regions(region_iterator)%get_fission(group_iterator),&
                     regions(region_iterator+1)%get_fission(group_iterator)))
@@ -411,7 +411,7 @@ MODULE solver_class
             else
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
-                    fission_source(i)=fission_source(i)+((phi(group_iterator,i))*&
+                    fission_source(i)=fission_source(i)+((phi(i,group_iterator))*&
                     regions(region_iterator)%get_fission(group_iterator))
                 end do
             end if
@@ -430,7 +430,7 @@ MODULE solver_class
         real(dp),INTENT(IN),DIMENSION(:,:) :: phi
         type(region_1d),INTENT(IN),DIMENSION(:) :: regions
         integer,INTENT(IN),DIMENSION(:) :: boundary_tracker
-        real(dp),dimension(size(phi(1,:))) :: scatter_source ! Fission source
+        real(dp),dimension(size(phi(:,1))) :: scatter_source ! Fission source
         integer :: group_iterator
         integer :: i
         integer :: region_iterator
@@ -448,7 +448,7 @@ MODULE solver_class
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                     ! If not in the same group then fine (ignores ingroup scatter)
                     if (group_iterator /= group) then
-                        scatter_source(i)=scatter_source(i)+(phi(group_iterator,i)*&
+                        scatter_source(i)=scatter_source(i)+(phi(i,group_iterator)*&
                         this%weighted_average(regions(region_iterator)%get_delta(),&
                         regions(region_iterator+1)%get_delta(),regions(region_iterator)%get_scatter(group_iterator,group),&
                         regions(region_iterator+1)%get_scatter(group_iterator,group)))
@@ -461,7 +461,7 @@ MODULE solver_class
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                     ! If not in the same group then fine
                     if (group_iterator /= group) then
-                        scatter_source(i)=scatter_source(i)+(phi(group_iterator,i)*&
+                        scatter_source(i)=scatter_source(i)+(phi(i,group_iterator)*&
                         regions(region_iterator)%get_scatter(group_iterator,group))
                     end if
                 end do

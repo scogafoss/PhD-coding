@@ -61,7 +61,7 @@ FUNCTION get_interpolation_fn(this) result(y_desired)
   ! Get interpolation
   integer :: x_iterator ! Iterates over the desired x values.
   integer :: data_iterator ! Iterates over the x data valus to interpolate.
-  print *,'test = ',abs(MAXVAL(this%x_desired)-maxval(this%x_data)), 'should be less than',abs(0.5*(this%x_data(1)-this%x_data(2)))
+  print*, 'here in maths class'
   ! Check min and max x_desired are allowed
   if (((minval(this%x_desired) >= minval(this%x_data)) .and. (maxval(this%x_desired) <= maxval(this%x_data)))&
    .or. (abs(minval(this%x_desired)-minval(this%x_data))<abs(0.5*(this%x_data(1)-this%x_data(2)))) &
