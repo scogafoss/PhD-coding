@@ -35,6 +35,11 @@ program test_multigroup
     do i = 1, size(matrix_array) 
         call nuc1%discretise_regions(regions,i) ! ith group
         call matrix_array(i)%set_variables(nuc1%get_a(),nuc1%get_b(),nuc1%get_c())
+        if (i==1) then
+            print*,'a',nuc1%get_a()
+            print*,'b',nuc1%get_b()
+            print*,'c',nuc1%get_c()
+        end if
     end do
     call solve%multigroup_solver(finite_phi,keff, regions, matrix_array,source_flux,x_coordinate)
     print *, 'Effective neutron multiplication factor:',keff

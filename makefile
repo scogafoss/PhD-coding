@@ -11,8 +11,8 @@ OBJS=			    	   precision_set.o \
 									 region_class_1d.o \
 									 timer_class.o \
 									 read_gem_file.o \
-									 error_class.o \
 									 maths_class.o \
+									 error_class.o \
 									 matrix_class.o \
 									 nuclear_matrix_class.o \
 									 initialise_variables.o \

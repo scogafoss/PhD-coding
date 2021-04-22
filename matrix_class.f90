@@ -51,9 +51,9 @@ SUBROUTINE set_variables_sub(this, a, b, c)
   IMPLICIT NONE
   ! Declare calling arguments
   CLASS(matrix) :: this ! Matrix object
-  real(dp),INTENT(IN),allocatable,dimension(:) :: a
-  real(dp),INTENT(IN),allocatable,dimension(:) :: b
-  real(dp),INTENT(IN),allocatable,dimension(:) :: c
+  real(dp),INTENT(IN),dimension(:) :: a
+  real(dp),INTENT(IN),dimension(:) :: b
+  real(dp),INTENT(IN),dimension(:) :: c
   ! Save data
   this%a = a
   this%b = b
