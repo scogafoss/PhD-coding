@@ -34,6 +34,7 @@ contains
     integer :: source_tracker
     integer :: status ! Checks if end of file
     integer :: total_nodes
+    integer :: total_steps
     integer :: total_regions
     integer :: total_materials
     integer :: total_groups
@@ -112,13 +113,16 @@ contains
     end do
     ! Add one to the nodes so that it is correct number of x values
     total_nodes = total_nodes +1
+    !
+    ! Correct if periodic B.C
+    !
+    if (regions(1)%get_left_boundary()=='p') then
+      total_nodes = total_nodes -1 ! One less node
+      call regions(size(regions))%set_steps(regions(size(regions))%get_steps()-1) ! Reduce the number of steps in rightmost region by 1
+    end if
     ! If the source type is volumetric, allocate the source flux, otherwise don't allocate, use to check later.
     if (fission_or_volumetric == "v") then
-      if (materials(1)%get_left_boundary()=='p') then ! If periodic then the source flux needs to contain one less node for each group
-        allocate(source_flux(1:total_nodes-1,1:total_groups))
-      else ! If not a periodic boundary then it doesn't matter.
-        allocate(source_flux(1:total_nodes,1:total_groups))
-      end if
+      allocate(source_flux(1:total_nodes,1:total_groups))
     end if
     ! If the source flux has been allocated, then fill it.
     if (ALLOCATED(source_flux)) then
@@ -165,17 +169,41 @@ contains
         end do
       end do
     end if
-    if(regions(1)%get_left_boundary=='p') THEN
-      do region_iterator =1,size(regions)
-        total_steps = total_steps + regions(region_iterator)%get_steps()
-        if(region_iterator==size(regions)) then
-          boundary_tracker(region_iterator) = total_steps ! Remove the very last node, store the second to last node (the last node is same as first so no need to repeat)
-        else
-          boundary_tracker(region_iterator) = total_steps + 1 ! Stores the boundary between regions
-        end if
+    if(regions(1)%get_left_boundary()=='p') THEN
+      do j=1,total_groups
+        do i =1,size(regions)
+          total_steps = total_steps + regions(i)%get_steps()
+          if(i==size(regions)) then
+            boundary_tracker(i) = total_steps ! Remove the very last node, store the second to last node (the last node is same as first so no need to repeat)
+          else
+            boundary_tracker(i) = total_steps + 1 ! Stores the boundary between regions
+          end if
+        end do
+        call correct_source(source_flux(:,j),regions,boundary_tracker)
       end do
-      call correct_source(source,regions,boundary_tracker)
     end if
   end subroutine initialise
+
+  subroutine correct_source(source,regions,boundary_tracker)
+    !
+    ! Subroutine to multiply source values by its delta value
+    !
+    real(dp),INTENT(INOUT),DIMENSION(:) :: source
+    type(region_1d),INTENT(IN),DIMENSION(:) :: regions
+    integer,INTENT(IN),DIMENSION(:) :: boundary_tracker
+    integer :: i
+    integer :: region_iterator
+    region_iterator = 1
+    do i = 1, size(source)
+      if (i==1) then
+        source(1) = source(1) * ((regions(size(regions))%get_delta()+regions(1)%get_delta())/2)
+      else if (i == boundary_tracker(region_iterator) .and. i /= size(source)) then
+        source(i) = source(i) * ((regions(region_iterator)%get_delta()+regions(region_iterator+1)%get_delta())/2)
+        region_iterator = region_iterator +1
+      else
+        source(i) = source(i)*regions(region_iterator)%get_delta()
+      end if
+    end do
+  end subroutine correct_source
 
 END module initialise_variables
