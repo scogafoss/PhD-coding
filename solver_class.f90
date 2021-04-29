@@ -14,10 +14,10 @@ MODULE solver_class
   !!      to tidy up the code. Also added a function to return weighted mean.  !!
   !!    22/03/2021: Added subroutine for fixed source to tidy up. Also added   !!
   !!      function to calculate the fission and scatter source. Method of      !!
-  !!      flux iteration needed changing, should iterate scatter source not    !!  
-  !!      changing fission source until keff is changed.                       !!  
-  !!    23/03/2021: Added function to calculate x_coordinate, and normalisation!!  
-  !!    24/03/2021: Corrected scatter_source to use correct group's flux       !!  
+  !!      flux iteration needed changing, should iterate scatter source not    !!
+  !!      changing fission source until keff is changed.                       !!
+  !!    23/03/2021: Added function to calculate x_coordinate, and normalisation!!
+  !!    24/03/2021: Corrected scatter_source to use correct group's flux       !!
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -33,7 +33,7 @@ MODULE solver_class
     procedure,PUBLIC :: weighted_average => weighted_average_fn ! Calcualtes weighted average
     procedure,PUBLIC :: k_iteration => k_iteration_sub ! Performs calculation for next iteration of eigenvalue
     procedure,public :: fixed_source_iteration => fixed_source_iteration_sub ! Performs flux iteration for volumetric (fixed) source
-    procedure,public :: fission_reaction_rate => fission_reaction_rate_fn ! Returns the fission source 
+    procedure,public :: fission_reaction_rate => fission_reaction_rate_fn ! Returns the fission source
     procedure,public :: scatter_source => scatter_source_fn ! Returns the scatter source
     procedure,public :: x_coordinates =>  x_coordinates_sub ! Returns the position of each node in the problem
     procedure,public :: normalise => normalise_fn ! Returns normalisation
@@ -67,7 +67,7 @@ MODULE solver_class
         real(dp),allocatable,dimension(:,:) :: source
         real(dp),ALLOCATABLE,DIMENSION(:) :: source_temp
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-        type(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
+        class(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
         integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp) :: convergence_criterion
         integer :: region_iterator
@@ -147,7 +147,7 @@ MODULE solver_class
                         total_steps,phi,regions,boundary_tracker)
                     end do
                     do group=1,groups
-                        phi(:,group)=matrix_array(group)%thomas_solve(source(:,group))
+                        phi(:,group)=matrix_array(group)%solve(source(:,group))
                     end do
                     exit
                 end if
@@ -194,7 +194,7 @@ MODULE solver_class
         real(dp),INTENT(in) :: keff
         real(dp),INTENT(INOUT),allocatable,dimension(:,:) :: source
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-        type(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
+        class(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp),INTENT(IN) :: convergence_criterion
         integer,INTENT(IN) :: total_steps
@@ -213,7 +213,7 @@ MODULE solver_class
         !
         ! Now loop scatter till convergence
         !
-        do            
+        do
             !
             ! Now need to perform scatter calculation for each energy group and iterate
             !
@@ -227,7 +227,7 @@ MODULE solver_class
                 !
                 phi_temp(:,group)=phi(:,group)
                 source(:,group)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
-                phi(:,group)=matrix_array(group)%thomas_solve(source(:,group))
+                phi(:,group)=matrix_array(group)%solve(source(:,group))
                 ! This needs to be done for all of the groups, so loop here
             end do
             ! Now this iteration will continue until the fluxes converge
@@ -313,7 +313,7 @@ MODULE solver_class
         real(dp),allocatable,dimension(:,:) :: source
         real(dp),INTENT(IN),dimension(:,:) :: source_flux
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-        type(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
+        class(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         integer :: region_iterator
         integer,INTENT(IN) :: total_steps
@@ -369,7 +369,7 @@ MODULE solver_class
             ! Now have the total source so can find the phi iteration for current group
             !
             phi_temp(:,group)=phi(:,group)
-            phi(:,group)=matrix_array(group)%thomas_solve(source(:,group))
+            phi(:,group)=matrix_array(group)%solve(source(:,group))
             ! This needs to be done for all of the groups, so loop here
         end do
     end subroutine fixed_source_iteration_sub
@@ -533,5 +533,5 @@ MODULE solver_class
             normalise_fn=1
         end if
     end function normalise_fn
-    
+
 end module solver_class

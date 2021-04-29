@@ -1,7 +1,8 @@
 program test_multigroup
     use read_gem_file
     use error_class
-    use nuclear_matrix_class
+    use populate_compressed
+    use populate_tridiagonal
     use initialise_variables
     use solver_class
     implicit none
@@ -9,8 +10,8 @@ program test_multigroup
     type(region_1d), allocatable, dimension(:) :: regions
     type(line), target, allocatable, dimension(:) :: lines
     type(material), target, allocatable, dimension(:) :: materials
-    type(nuclear_matrix) :: nuc1
-    type(matrix),allocatable,dimension(:) :: matrix_array
+    class(populate_class) :: pop
+    class(matrix),allocatable,dimension(:) :: matrix_array
     type(error) :: error1
     integer :: x_tracker=1
     real(dp), allocatable, dimension(:,:) :: source_flux
@@ -32,9 +33,9 @@ program test_multigroup
     London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     call initialise(filename,regions,lines,materials,source_flux,groups)
     ALLOCATE(matrix_array(1:groups))
-    do i = 1, size(matrix_array) 
-        call nuc1%discretise_regions(regions,i) ! ith group
-        call matrix_array(i)%set_variables(nuc1%get_a(),nuc1%get_b(),nuc1%get_c())
+    do i = 1, groups
+        call pop%populate(matrix_array(i),regions,i) ! ith group
+        ! call matrix_array(i)%set_variables(nuc1%get_a(),nuc1%get_b(),nuc1%get_c())
         if (i==1) then
             print*,'a',nuc1%get_a()
             print*,'b',nuc1%get_b()
@@ -58,4 +59,3 @@ program test_multigroup
         print *,'group',i,'L2 = ',error1%l2_from_fluxes(finite_phi(:,i),x_coordinate,gem_phi(:,i),gem_x), 'delta = ',x_coordinate(2)-x_coordinate(1)
     end do
   end program test_multigroup
-  

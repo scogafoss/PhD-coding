@@ -27,6 +27,7 @@ contains
     type(material), intent(inout), allocatable, dimension(:) :: materials
     integer,INTENT(INOUT) :: groups
     real(dp),intent(out), allocatable, dimension(:,:) :: source_flux ! Source flux array
+    integer,allocatable,dimension(:) :: boundary_tracker
     integer :: i
     integer :: j
     INTEGER :: k
@@ -48,6 +49,7 @@ contains
       if (line == 'Regions') then
         read(11,*,iostat=status) line, total_regions
         allocate(regions(1:total_regions))
+        allocate(boundary_tracker(1:total_regions))
         allocate(lines(1:total_regions))
       else if (line == 'Materials') then
         read(11,*,iostat=status) line, total_materials
@@ -112,7 +114,11 @@ contains
     total_nodes = total_nodes +1
     ! If the source type is volumetric, allocate the source flux, otherwise don't allocate, use to check later.
     if (fission_or_volumetric == "v") then
-      allocate(source_flux(1:total_nodes,1:total_groups))
+      if (materials(1)%get_left_boundary()=='p') then ! If periodic then the source flux needs to contain one less node for each group
+        allocate(source_flux(1:total_nodes-1,1:total_groups))
+      else ! If not a periodic boundary then it doesn't matter.
+        allocate(source_flux(1:total_nodes,1:total_groups))
+      end if
     end if
     ! If the source flux has been allocated, then fill it.
     if (ALLOCATED(source_flux)) then
@@ -122,7 +128,7 @@ contains
         ! Set the source flux
         do i = 1, size(regions)
           ! First region has extra node at the start
-          if (i == 1) then
+          if (i == 1 .and. i/=size(regions)) then
             do j = 1, regions(i)%get_steps()+1
               source_tracker=source_tracker+1
               ! If not at boundary node
@@ -136,9 +142,10 @@ contains
               end if
             end do
           ! Last region needs no boundary correction
-        else if (i == size(regions)) then
+          else if (i == size(regions)) then
             do j = 1, regions(i)%get_steps()
               source_tracker = source_tracker + 1
+              if (source_tracker > size(source_flux)) exit ! This is for periodic case
               source_flux(source_tracker,k) = regions(i)%get_source_flux(k)
             end do
           ! For internal regions
@@ -157,6 +164,17 @@ contains
           end if
         end do
       end do
+    end if
+    if(regions(1)%get_left_boundary=='p') THEN
+      do region_iterator =1,size(regions)
+        total_steps = total_steps + regions(region_iterator)%get_steps()
+        if(region_iterator==size(regions)) then
+          boundary_tracker(region_iterator) = total_steps ! Remove the very last node, store the second to last node (the last node is same as first so no need to repeat)
+        else
+          boundary_tracker(region_iterator) = total_steps + 1 ! Stores the boundary between regions
+        end if
+      end do
+      call correct_source(source,regions,boundary_tracker)
     end if
   end subroutine initialise
 

@@ -1,5 +1,7 @@
 MODULE compressed_matrix_class
     use precision_set
+    use region_class_1d
+    use matrix_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: compressed_matrix_class.f90                                    !!
   !!                                                                           !!
@@ -11,38 +13,44 @@ MODULE compressed_matrix_class
   !!    column_index, and row_index.                                           !!
   !!                                                                           !!
   !!  Revisions:                                                               !!
+  !!    28/04/2021: Added to part of the matrix hierarchy                      !!
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
   IMPLICIT NONE
   ! Type definition
-  TYPE,PUBLIC :: compressed_matrix ! This will be the name we instantiate
+  TYPE,PUBLIC,extends(matrix) :: compressed_matrix ! This will be the name we instantiate
   ! Instance variables.
-  PRIVATE
   real(dp), allocatable, dimension(:) :: values ! Non-zero values in matrix
   integer, allocatable, dimension(:) :: column_index ! Column index
   integer, allocatable, dimension(:) :: row_index ! Stores the total number of non-zero values summed from previous rows (plus an extra element at the start)
-  integer :: rows ! Stores the number of rows
-  integer :: columns !Stores the number of columns
+  integer :: rows=0 ! Stores the number of rows
+  integer :: columns=0 !Stores the number of columns
   CONTAINS
   ! Bound procedures
   PROCEDURE,PUBLIC :: set_variables => set_variables_sub ! Allows user to input desired matrix
   procedure,public :: vector_multiply => vector_multiply_fn ! Multiply two compressed matrices
-  PROCEDURE,PUBLIC :: conujgate_gradient_method => conjugate_gradient_method_fn ! Performs CG solve
+  PROCEDURE,PUBLIC :: solve => solve_fn ! Performs CG solve
   PROCEDURE,PUBLIC :: get_element => get_element_fn ! Returns element
   procedure,public :: add_element => add_element_sub ! Adds element to matrix
   procedure,public :: remove_element => remove_element_sub ! Removes element from matrix
+  procedure,public :: set_size => set_size_sub ! Set rows and columns dimensions.
+  procedure,public :: get_rows => get_rows_fn ! Function to return number of rows
+  procedure,public :: get_columns => get_columns_fn ! Function to return number of columns
   END TYPE compressed_matrix
   ! Restrict access to the actual procedure names
   PRIVATE :: set_variables_sub
   private :: vector_multiply_fn
-  private :: conjugate_gradient_method_fn
+  private :: solve_fn
   private :: get_element_fn
   private :: add_element_sub
   private :: remove_element_sub
+  private :: set_size_sub
+  private :: get_rows_fn
+  private :: get_columns_fn
   ! Now add methods
   CONTAINS
-  
+
   SUBROUTINE set_variables_sub(this, values, column_index, row_index, rows, columns)
     !
     ! Subroutine to set the variables
@@ -62,7 +70,7 @@ MODULE compressed_matrix_class
     this%rows = rows
     this%columns = columns
   END SUBROUTINE set_variables_sub
-  
+
   function vector_multiply_fn(this, vector) result(solution)
     !
     ! Function to return multiplication of two matrices.
@@ -83,19 +91,20 @@ MODULE compressed_matrix_class
         end do
     end do
 END function vector_multiply_fn
-  
-  function conjugate_gradient_method_fn(this,source) result(solution)
+
+  function solve_fn(this,source,regions) result(solution)
     !
     ! Function to return solution to Ax=B matrix equation for a square matrix
     !
     implicit none
     ! Declare calling arguments
     class(compressed_matrix),intent(in) :: this ! Matrix object
-    real(dp),INTENT(IN),DIMENSION(:) :: source ! Source B in matrix equation
+    real(dp),INTENT(INOUT),DIMENSION(:) :: source ! Source B in matrix equation
+    type(region_1d),DIMENSION(:),INTENT(IN) :: regions
     real(dp), dimension(size(source)) :: solution ! x in matrix equation
     real(dp),dimension(size(source)) :: residual ! r in equation
-    real(dp) :: rsold ! r'r 
-    real(dp) :: rsnew ! r'r 
+    real(dp) :: rsold ! r'r
+    real(dp) :: rsnew ! r'r
     real(dp),dimension(size(source)) :: Ap ! matrix * residual, useful constant
     real(dp),dimension(size(source)) :: basis_vector ! p in equation
     real(dp) :: convergence
@@ -125,8 +134,8 @@ END function vector_multiply_fn
         basis_vector = residual + (rsnew / rsold) * basis_vector
         rsold = rsnew
     end do
-  end function conjugate_gradient_method_fn
-  
+  end function solve_fn
+
   real (dp) function get_element_fn(this,row,column)
     !
     ! Function to return an element of the matrix.
@@ -142,7 +151,9 @@ END function vector_multiply_fn
     if(column>size(this%row_index)-1) stop 'Column requested is outside of allocated matrix.' ! I know the matrix will be square so this is correct still.
     row_start = this%row_index(row)
     row_end = this%row_index(row+1)
-    if (find_location_integer(this%column_index(row_start:row_end-1),column)==0) then ! findloc(array,value) returns zero if value is not in array
+    if (row_start==row_end) then ! No values in this row
+        get_element_fn = 0
+    else if (find_location_integer(this%column_index(row_start:row_end-1),column)==0) then ! findloc(array,value) returns zero if value is not in array
         ! There is no non-zero value here - so return zero.
         get_element_fn = 0
     else
@@ -165,32 +176,44 @@ END function vector_multiply_fn
     integer :: i
     integer :: new_value_index
     ! Check within matrix
+    if(this%rows==0 .or. this%columns==0) stop 'Size of matrix not yet set'
     if(row>this%rows) stop 'Row requested is outside of allocated matrix.'
     if(column>this%columns) stop 'Column requested is outside of allocated matrix.'
-    ! Add to size of stored arrays.
-    temp_values=this%values
-    temp_columns=this%column_index
-    deallocate(this%values)
-    deallocate(this%column_index)
-    allocate(this%values(1:size(temp_values)+1))
-    allocate(this%column_index(1:size(temp_columns)+1))
-    do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
-        if (this%column_index(i+this%row_index(row))==column) stop 'Requested row and column in matrix already filled by non-zero&
-         value.'
-        if (column < this%column_index(i+this%row_index(row))) exit ! If here then the added value needs to go at this index and shift other values along.
-    end do
-    if (i==(this%row_index(row+1)-this%row_index(row))) i=i+1 ! Added value goes at the end of the row
-    this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))+1 ! Add one to the row index according to location of new value.
-    ! Populate the new column and value vectors
-    new_value_index=i+this%row_index(row)-1 ! Record position of new value
-    ! Shift columns
-    this%column_index(1:new_value_index-1)=temp_columns(1:new_value_index-1)
-    this%column_index(new_value_index)=column
-    this%column_index(new_value_index+1:size(this%column_index))=temp_columns(new_value_index:size(temp_columns))
-    ! Shift values
-    this%values(1:new_value_index-1)=temp_values(1:new_value_index-1)
-    this%values(new_value_index)=value
-    this%values(new_value_index+1:size(this%values))=temp_values(new_value_index:size(temp_values))  
+    ! If not yet allocated (i.e. only size set) then allocate and add one point.
+    if(.not. allocated(this%values)) then
+        allocate(this%values(1:1))
+        allocate(this%column_index(1:1))
+        this%values=value
+        this%column_index=column
+        this%row_index(row+1:this%rows+1)=2
+        print*,'here, and rowindexes =',this%row_index
+    ! If already allocated
+    else
+        if (this%get_element(row,column) /= 0) stop 'Requested row and column already filled by non-zero value.'
+        print*,'testing'
+        ! Add to size of stored arrays.
+        temp_values=this%values
+        temp_columns=this%column_index
+        deallocate(this%values)
+        deallocate(this%column_index)
+        allocate(this%values(1:size(temp_values)+1))
+        allocate(this%column_index(1:size(temp_columns)+1))
+        do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
+            if (column < this%column_index(i+this%row_index(row))) exit ! If here then the added value needs to go at this index and shift other values along.
+        end do
+        if (i==(this%row_index(row+1)-this%row_index(row))) i=i+1 ! Added value goes at the end of the row
+        this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))+1 ! Add one to the row index according to location of new value.
+        ! Populate the new column and value vectors
+        new_value_index=i+this%row_index(row)-1 ! Record position of new value
+        ! Shift columns
+        this%column_index(1:new_value_index-1)=temp_columns(1:new_value_index-1)
+        this%column_index(new_value_index)=column
+        this%column_index(new_value_index+1:size(this%column_index))=temp_columns(new_value_index:size(temp_columns))
+        ! Shift values
+        this%values(1:new_value_index-1)=temp_values(1:new_value_index-1)
+        this%values(new_value_index)=value
+        this%values(new_value_index+1:size(this%values))=temp_values(new_value_index:size(temp_values))
+    end if
   end subroutine add_element_sub
 
   subroutine remove_element_sub(this,row,column)
@@ -218,7 +241,7 @@ END function vector_multiply_fn
     allocate(this%values(1:size(temp_values)-1))
     allocate(this%column_index(1:size(temp_columns)-1))
     do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
-        if (temp_columns(i+this%row_index(row)-1)==column) exit ! This is the value to remove  
+        if (temp_columns(i+this%row_index(row)-1)==column) exit ! This is the value to remove
     end do
     this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))-1 ! Remove one from row index according to location of new value.
     ! Populate the new column and value vectors
@@ -232,7 +255,7 @@ END function vector_multiply_fn
 end subroutine remove_element_sub
 
 integer function find_location_integer(integer_array,value)
-    !    
+    !
     ! Function to replace the findloc fortran function
     !
     implicit none
@@ -251,7 +274,7 @@ integer function find_location_integer(integer_array,value)
 end function find_location_integer
 
 function transpose_vector(vector) result(solution)
-    !    
+    !
     ! Function to transpose 1D array
     !
     implicit none
@@ -260,5 +283,40 @@ function transpose_vector(vector) result(solution)
     real(dp),DIMENSION(1,size(vector)) :: solution
     solution(1,:)=vector
 end function transpose_vector
+
+subroutine set_size_sub(this,rows,columns)
+    !
+    ! Sub to set size of matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),INTENT(INOUT) :: this
+    INTEGER, INTENT(IN) :: rows
+    INTEGER, INTENT(IN) :: columns
+    this%rows = rows
+    this%columns = columns
+    allocate(this%row_index(1:rows+1))
+    this%row_index=1
+end subroutine set_size_sub
+
+integer function get_rows_fn(this)
+    !
+    ! Function to return number of rows
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),INTENT(IN) :: this
+    get_rows_fn=this%rows
+end function get_rows_fn
+
+integer function get_columns_fn(this)
+    !
+    ! Function to return number of columns
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),INTENT(IN) :: this
+    get_columns_fn=this%columns
+end function get_columns_fn
 
   END MODULE compressed_matrix_class
