@@ -14,18 +14,19 @@ MODULE populate_class
 
 IMPLICIT NONE
 ! Type definition
-TYPE,PUBLIC :: matrix ! This will be the name we instantiate
+TYPE,PUBLIC :: populate ! This will be the name we instantiate
 ! Instance variables.
 CONTAINS
 ! Bound procedures
 PROCEDURE,PUBLIC :: populate => populate_sub ! Populates matrix
-END TYPE matrix
+END TYPE populate
 ! Restrict access to the actual procedure names
 private :: populate_sub
 ! Now add methods
 CONTAINS
 
-subroutine populate_sub()
+subroutine populate_sub(this)
+    class(populate),INTENT(IN) :: this
 END subroutine populate_sub
 
 END MODULE populate_class

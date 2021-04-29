@@ -118,6 +118,7 @@ contains
     !
     if (regions(1)%get_left_boundary()=='p') then
       total_nodes = total_nodes -1 ! One less node
+      if (regions(size(regions))%get_steps()<2) stop 'Need 2 or more steps per region for periodic boundary'
       call regions(size(regions))%set_steps(regions(size(regions))%get_steps()-1) ! Reduce the number of steps in rightmost region by 1
     end if
     ! If the source type is volumetric, allocate the source flux, otherwise don't allocate, use to check later.

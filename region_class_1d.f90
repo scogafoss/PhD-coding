@@ -42,6 +42,7 @@ procedure,public :: get_scatter => get_scatter_fn ! Returns scatter
 procedure,public :: get_removal => get_removal_fn ! Returns removal cross sections
 procedure,public :: get_probability => get_probability_fn ! Returns fission probability
 procedure,public :: get_delta => get_delta_fn ! Returns delta
+procedure,public :: set_steps => set_steps_sub ! Sets the number of steps in line class - used for periodic BC
 END TYPE region_1d
 ! Restrict access to the actual procedure names
 private :: set_line_id_sub
@@ -61,6 +62,7 @@ private :: get_scatter_fn
 private :: get_removal_fn
 private :: get_probability_fn
 private :: get_delta_fn
+private :: set_steps_sub
 ! Now add methods
 CONTAINS
 
@@ -264,5 +266,17 @@ CONTAINS
     if(.not.associated(this%materials)) stop 'Error no material associated with region (probability)'
     value = this%materials%get_probability(index)
   END FUNCTION get_probability_fn
+
+  subroutine set_steps_sub(this,steps)
+    !
+    ! Function to return fission probability
+    !
+    IMPLICIT NONE
+    ! Declare calling arguments
+    CLASS(region_1d),INTENT(IN) :: this ! region object
+    INTEGER,INTENT(IN) :: steps
+    if(.not.associated(this%lines)) stop 'Error no line associated with region (set_steps)'
+    call this%lines%set_steps(steps)
+  end subroutine set_steps_sub
   
 end module region_class_1d

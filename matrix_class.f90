@@ -26,7 +26,9 @@ private :: solve_fn
 ! Now add methods
 CONTAINS
 
-FUNCTION solve_fn()
+FUNCTION solve_fn(this) result(solution)
+  class(matrix),INTENT(INOUT) :: this
+  real(dp),allocatable,dimension(:) :: solution
 END FUNCTION solve_fn
 
 END MODULE matrix_class

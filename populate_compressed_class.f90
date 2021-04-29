@@ -21,7 +21,7 @@ MODULE populate_compressed_class
 
   IMPLICIT NONE
   ! Type definition
-  TYPE,PUBLIC,extends(populate_class) :: populate_compressed ! This will be the name we instantiate
+  TYPE,PUBLIC,extends(populate) :: populate_compressed ! This will be the name we instantiate
   ! Instance variables.
   CONTAINS
   ! Bound procedures
@@ -196,4 +196,4 @@ END TYPE populate_compressed
         weighted_average=((variable1*weight1)+(variable2*weight2))/(weight1+weight2)
     end function weighted_average
 
-  END MODULE compressed_nuclear_matrix_class
+  END MODULE populate_compressed_class

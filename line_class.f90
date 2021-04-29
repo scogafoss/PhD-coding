@@ -35,6 +35,7 @@ PROCEDURE,PUBLIC :: get_geomtype => get_geomtype_fn ! Returns geomtype
 procedure,public ::set_id => set_id_sub ! Allows name to be set
 procedure,public ::get_id => get_id_fn ! Returns ID
 procedure,public :: get_delta => get_delta_fn ! Returns delta
+procedure,public :: set_steps => set_steps_sub ! Directly sets the steps - used for periodic BC
 END TYPE line
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
@@ -46,6 +47,7 @@ private :: get_geomtype_fn
 private :: set_id_sub
 private :: get_id_fn
 private :: get_delta_fn
+private :: set_steps_sub
 ! Now add methods
 CONTAINS
 
@@ -193,5 +195,17 @@ real(dp) FUNCTION get_delta_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_delta_fn = this%length/this%steps
 END FUNCTION get_delta_fn
+
+subroutine set_steps_sub(this,steps)
+  !
+  ! Subroutine to set the steps
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(line) :: this ! Line object
+  integer,INTENT(IN) :: steps
+  ! Save datum
+  this%steps = steps
+end subroutine set_steps_sub
 
 END MODULE line_class

@@ -24,7 +24,7 @@ MODULE populate_tridiagonal_class
 
 IMPLICIT NONE
 ! Type definition
-TYPE,PUBLIC,extends(populate_class) :: populate_tridiagonal ! This will be the name we instantiate
+TYPE,PUBLIC,extends(populate) :: populate_tridiagonal ! This will be the name we instantiate
 ! Instance variables.
 real(dp), allocatable, dimension(:) :: a ! Bottom (leftmost) diagonal in matrix |b1 c1 0  0 |
 real(dp), allocatable, dimension(:) :: b ! Middle (main) diagonal in matrix     |a2 b2 c2 0 |
