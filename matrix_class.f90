@@ -19,16 +19,17 @@ TYPE,PUBLIC :: matrix ! This will be the name we instantiate
 ! Instance variables.
 CONTAINS
 ! Bound procedures
-PROCEDURE,PUBLIC :: solve => solve_fn ! Performs a matrix equation solve
+! PROCEDURE,PUBLIC :: solve => solve_fn ! Performs a matrix equation solve
 END TYPE matrix
 ! Restrict access to the actual procedure names
-private :: solve_fn
+! private :: solve_fn
 ! Now add methods
 CONTAINS
 
-FUNCTION solve_fn(this) result(solution)
-  class(matrix),INTENT(INOUT) :: this
-  real(dp),allocatable,dimension(:) :: solution
-END FUNCTION solve_fn
+! FUNCTION solve_fn(this,source_flux) result(solution)
+!   class(matrix),INTENT(IN) :: this
+!   real(dp),INTENT(IN),DIMENSION(:) :: source_flux
+!   real(dp),dimension(size(source_flux)) :: solution
+! END FUNCTION solve_fn
 
 END MODULE matrix_class

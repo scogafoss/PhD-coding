@@ -11,6 +11,8 @@ MODULE line_class
 !!                                                                           !!
 !!  Revisions:                                                               !!
 !!    05/02/2021 : Updated how line was read in. Added line ID               !!
+!!    30/04/2021 : Added delta to variables                                  !!
+!!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 IMPLICIT NONE
@@ -23,6 +25,7 @@ real(dp) :: start ! Start of region
 real(dp) :: length ! Length of region
 integer :: steps ! Number of nodes
 integer :: geomtype ! Type of geometry (0:slab, 1:cylindrical, 2:spherical)
+real(dp) :: delta ! Stores the step size
 
 CONTAINS
 ! Bound procedures
@@ -67,6 +70,7 @@ SUBROUTINE set_variables_sub(this, start, length, steps, geomtype)
   this%length = length
   this%steps = steps
   this%geomtype = geomtype
+  this%delta = this%length / this%steps
 END SUBROUTINE set_variables_sub
 
 SUBROUTINE read_variables_sub(this, filename)
@@ -111,6 +115,7 @@ SUBROUTINE read_variables_sub(this, filename)
             this%start = start
             this%length = length
             this%steps = steps
+            this%delta = length / steps
             exit
           end if
           if (index(line,'---')/=0) THEN
@@ -125,6 +130,7 @@ SUBROUTINE read_variables_sub(this, filename)
     end if
   end do
   close(10)
+  ! this%delta = this%length / this%steps
 END SUBROUTINE read_variables_sub
 
 real(dp) FUNCTION get_start_fn(this)
@@ -186,16 +192,6 @@ character(80) FUNCTION get_id_fn(this)
   get_id_fn = this%id
 END FUNCTION get_id_fn
 
-real(dp) FUNCTION get_delta_fn(this)
-  !
-  ! Function to return delta
-  !
-  IMPLICIT NONE
-  ! Declare calling arguments
-  CLASS(line),INTENT(IN) :: this ! Line object
-  get_delta_fn = this%length/this%steps
-END FUNCTION get_delta_fn
-
 subroutine set_steps_sub(this,steps)
   !
   ! Subroutine to set the steps
@@ -205,7 +201,17 @@ subroutine set_steps_sub(this,steps)
   CLASS(line) :: this ! Line object
   integer,INTENT(IN) :: steps
   ! Save datum
-  this%steps = steps
+  this%steps = steps !Note this preserves the original delta as this is just for periodic
 end subroutine set_steps_sub
+
+real(dp) FUNCTION get_delta_fn(this)
+  !
+  ! Function to return right BC
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(line),INTENT(IN) :: this ! Line object
+  get_delta_fn = this%delta
+END FUNCTION get_delta_fn
 
 END MODULE line_class

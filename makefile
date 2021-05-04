@@ -5,19 +5,41 @@ LD=gfortran
 
 #Set the objects
 OBJS=			    	   precision_set.o \
+									 read_gem_file.o \
+									 maths_class.o \
+									 error_class.o \
 									 line_class.o \
 									 material_class.o \
 									 region_class.o \
 									 region_class_1d.o \
 									 timer_class.o \
-									 read_gem_file.o \
-									 maths_class.o \
-									 error_class.o \
 									 matrix_class.o \
-									 nuclear_matrix_class.o \
+									 populate_class.o \
+									 compressed_matrix_class.o \
+									 tridiagonal_matrix_class.o \
+									 populate_tridiagonal_class.o \
+									 populate_compressed_class.o \
 									 initialise_variables.o \
 									 solver_class.o \
-				    test_multigroup.o
+				    test_periodic.o
+# OBJS=			    	   precision_set.o \
+# 									 read_gem_file.o \
+# 									 maths_class.o \
+# 									 error_class.o \
+# 									 line_class.o \
+# 									 material_class.o \
+# 									 region_class.o \
+# 									 region_class_1d.o \
+# 									 timer_class.o \
+# 									 matrix_class.o \
+# 									 populate_class.o \
+# 									 compressed_matrix_class.o \
+# 									 tridiagonal_matrix_class.o \
+# 									 populate_tridiagonal_class.o \
+# 									 populate_compressed_class.o \
+# 									 initialise_variables.o \
+# 									 solver_class.o \
+# 				    test.o
 # OBJS=			    	   precision_set.o \
 # 									 line_class.o \
 # 									 material_class.o \
@@ -62,7 +84,7 @@ MODS= $(OBJS:.o=.mod)
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # DEFINE EXECUTABLE
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-EXEC=test_multigroup
+EXEC=test_periodic
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # MAKEFILE VARIABLE

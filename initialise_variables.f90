@@ -38,29 +38,29 @@ contains
     integer :: total_regions
     integer :: total_materials
     integer :: total_groups
-    character(80) :: line
+    character(80) :: file_line
     character(80) :: mid ! Material ID
     character(80) :: lid ! Line ID
     character(80) :: fission_or_volumetric ! ID for a volumetric or fission source problem
     open(11,file=filename,iostat=status)
     ! Read through file.
     do
-    	read(11,'(A)',iostat=status) line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
+    	read(11,'(A)',iostat=status) file_line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
     	if (status /= 0) exit ! exit if end of file (or fail).
-      if (line == 'Regions') then
-        read(11,*,iostat=status) line, total_regions
+      if (file_line == 'Regions') then
+        read(11,*,iostat=status) file_line, total_regions
         allocate(regions(1:total_regions))
         allocate(boundary_tracker(1:total_regions))
         allocate(lines(1:total_regions))
-      else if (line == 'Materials') then
-        read(11,*,iostat=status) line, total_materials
+      else if (file_line == 'Materials') then
+        read(11,*,iostat=status) file_line, total_materials
         allocate(materials(1:total_materials))
-      else if (line == 'Groups') then
-        read(11,*,iostat=status) line, total_groups
+      else if (file_line == 'Groups') then
+        read(11,*,iostat=status) file_line, total_groups
         groups = total_groups
-      else if (line == 'Region Number, Linex, Liney, Linez, Material ID') then
+      else if (file_line == 'Region Number, Linex, Liney, Linez, Material ID') then
         do i = 1,total_regions! Loop until no more regions
-          read(11,*,iostat=status) line, lid, mid
+          read(11,*,iostat=status) file_line, lid, mid
           ! Set the line and material ID's associated with the region
           call regions(i)%set_line_id(lid)
           call regions(i)%set_material_id(mid)
@@ -71,7 +71,7 @@ contains
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Add material ID to dummy list of ID's if it has not been recorded already.
         end do
-      else if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
+      else if (file_line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
         do i = 1,total_materials! Loop until no more materials
           do j=1,total_groups ! Make sure to skip over IDs of the same group
             if (j==1)then ! Only read the first group corresponding to each material so no repeats
@@ -87,7 +87,7 @@ contains
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Add material ID to dummy list of ID's if it has not been recorded already.
         end do
-      else if (line == "Source Type - (f)ission or (v)olumetric") then
+      else if (file_line == "Source Type - (f)ission or (v)olumetric") then
         read(11,*,iostat=status) fission_or_volumetric
       end if
     end do
@@ -174,11 +174,7 @@ contains
       do j=1,total_groups
         do i =1,size(regions)
           total_steps = total_steps + regions(i)%get_steps()
-          if(i==size(regions)) then
-            boundary_tracker(i) = total_steps ! Remove the very last node, store the second to last node (the last node is same as first so no need to repeat)
-          else
-            boundary_tracker(i) = total_steps + 1 ! Stores the boundary between regions
-          end if
+          boundary_tracker(i) = total_steps + 1 ! Stores the boundary between regions
         end do
         call correct_source(source_flux(:,j),regions,boundary_tracker)
       end do

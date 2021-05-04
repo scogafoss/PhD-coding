@@ -1,6 +1,5 @@
 MODULE populate_tridiagonal_class
   use populate_class
-  use tridiagonal_matrix_class
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: populate_matrix_class.f90                                      !!
 !!                                                                           !!
@@ -26,6 +25,7 @@ IMPLICIT NONE
 ! Type definition
 TYPE,PUBLIC,extends(populate) :: populate_tridiagonal ! This will be the name we instantiate
 ! Instance variables.
+PRIVATE
 real(dp), allocatable, dimension(:) :: a ! Bottom (leftmost) diagonal in matrix |b1 c1 0  0 |
 real(dp), allocatable, dimension(:) :: b ! Middle (main) diagonal in matrix     |a2 b2 c2 0 |
 real(dp), allocatable, dimension(:) :: c ! Top (rightmost) diagonal             |0  a3 b3 c3|
@@ -33,14 +33,14 @@ real(dp), allocatable, dimension(:) :: c ! Top (rightmost) diagonal             
 CONTAINS
 ! Bound procedures
 PROCEDURE,PUBLIC :: set_variables => set_variables_sub ! Allows user to input desired matrix
-procedure,public :: populate => populate_sub ! Discretises input region array.
+procedure,public :: populate_matrix => populate_matrix_sub ! Discretises input region array.
 PROCEDURE,PUBLIC :: get_a => get_a_fn ! Returns array a
 PROCEDURE,PUBLIC :: get_b => get_b_fn ! Returns array b
 PROCEDURE,PUBLIC :: get_c => get_c_fn ! Returns array c
 END TYPE populate_tridiagonal
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
-private :: populate_sub
+private :: populate_matrix_sub
 private :: get_a_fn
 private :: get_b_fn
 private :: get_c_fn
@@ -53,7 +53,7 @@ SUBROUTINE set_variables_sub(this, a, b, c)
   !
   IMPLICIT NONE
   ! Declare calling arguments
-  CLASS(nuclear_matrix) :: this ! Matrix object
+  CLASS(populate_tridiagonal) :: this ! Matrix object
   real(dp),INTENT(IN),allocatable,dimension(:) :: a
   real(dp),INTENT(IN),allocatable,dimension(:) :: b
   real(dp),INTENT(IN),allocatable,dimension(:) :: c
@@ -63,13 +63,13 @@ SUBROUTINE set_variables_sub(this, a, b, c)
   this%c = c
 END SUBROUTINE set_variables_sub
 
-SUBROUTINE populate_sub(this,matrix,regions,group)
+SUBROUTINE populate_matrix_sub(this,in_matrix,regions,group)
   !
   ! Subroutine to perform discretisation.
   !
   implicit none
-  class(nuclear_matrix), intent(out) :: this ! Nuclear_matrix object
-  type(tridiagonal_matrix) :: matrix ! Matrix class to populate
+  class(populate_tridiagonal), intent(inout) :: this ! Nuclear_matrix object
+  type(tridiagonal_matrix),INTENT(INOUT) :: in_matrix ! Matrix class to populate
   type(region_1d), intent(in), dimension(:) :: regions ! Region object
   integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
   INTEGER :: i ! integer for do loop
@@ -80,7 +80,7 @@ SUBROUTINE populate_sub(this,matrix,regions,group)
   real(dp) :: D ! Diffusion coefficient
   real(dp) :: absorption ! Macroscopic absorption coefficient.
   integer :: total_steps ! Total steps across regions.
-  INTEGER :: group ! Which group's data is required
+  INTEGER,intent(in) :: group ! Which group's data is required
   ! Allocate the class array sizes.
   total_steps = 0
   do region_iterator =1,size(regions)
@@ -246,8 +246,8 @@ SUBROUTINE populate_sub(this,matrix,regions,group)
     END IF
   END DO
   ! Populate the tridiagonal matrix
-  call matrix%set_variables(this%a,this%b,this%c)
-END SUBROUTINE populate_sub
+  call in_matrix%set_variables(this%a,this%b,this%c)
+END SUBROUTINE populate_matrix_sub
 
 function get_a_fn(this) result(get_a)
   !
@@ -255,7 +255,7 @@ function get_a_fn(this) result(get_a)
   !
   implicit none
   ! Declare calling arguments
-  class(nuclear_matrix),intent(in) :: this ! Matrix object
+  class(populate_tridiagonal),intent(in) :: this ! Matrix object
   real(dp), allocatable, dimension(:) :: get_a
   get_a = this%a
 end function get_a_fn
@@ -266,7 +266,7 @@ function get_b_fn(this) result(get_b)
   !
   implicit none
   ! Declare calling arguments
-  class(nuclear_matrix),intent(in) :: this ! Matrix object
+  class(populate_tridiagonal),intent(in) :: this ! Matrix object
   real(dp), allocatable, dimension(:) :: get_b
   get_b = this%b
 end function get_b_fn
@@ -277,9 +277,9 @@ function get_c_fn(this) result(get_c)
   !
   implicit none
   ! Declare calling arguments
-  class(nuclear_matrix),intent(in) :: this ! Matrix object
+  class(populate_tridiagonal),intent(in) :: this ! Matrix object
   real(dp), allocatable, dimension(:) :: get_c
   get_c = this%c
 end function get_c_fn
 
-END MODULE nuclear_matrix_class
+END MODULE populate_tridiagonal_class

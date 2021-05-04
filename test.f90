@@ -1,6 +1,5 @@
 program test
     use compressed_matrix_class
-    use matrix_class
     implicit none
     ! type(compressed_matrix) :: cm
     ! type(matrix) :: m
@@ -80,7 +79,7 @@ program test
     real(dp),dimension(4)::c
     real(dp),DIMENSION(4) :: d
     integer :: i,j
-        
+    c=0.5
     ! vals=1
     ! a(1)=0
     ! a(2)=1
@@ -113,15 +112,25 @@ program test
     ! d(4)=4
     ! call cm%set_variables(vals,cols,rows,4,4)
     call cm%set_size(4,4)
-    call cm%add_element(4.4_dp,2,2)
-    call cm%add_element(4.4_dp,3,3)
+    call cm%add_element(2.375_dp,1,1)
+    call cm%add_element(-1.333333333_dp,1,2)
+    call cm%add_element(-1.333333333_dp,2,1)
+    call cm%add_element(-0.666666667_dp,1,4)
+    call cm%add_element(2.9166666667_dp,2,2)
+    call cm%add_element(-1.333333333_dp,2,3)
+    call cm%add_element(-1.333333333_dp,3,2)
+    call cm%add_element(2.375_dp,3,3)
+    call cm%add_element(-0.666666667_dp,3,4)
+    call cm%add_element(-0.666666667_dp,4,1)
+    call cm%add_element(-0.666666667_dp,4,3)
+    call cm%add_element(1.8333333333_dp,4,4)
     ! call cm%add_element(4.4_dp,3,4)
-    Print*, 'CG',cm%get_element(4,4)
-    do i=1,4
-        do j=1,4
-            print*,i,j,'=',cm%get_element(i,j)
-        end do
-    end do
+    Print*, 'CG',cm%solve(c)
+    ! do i=1,4
+    !     do j=1,4
+    !         print*,i,j,'=',cm%get_element(i,j)
+    !     end do
+    ! end do
     ! Print*, 'Thomas',m%thomas_solve(d)
 
 

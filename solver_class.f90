@@ -1,5 +1,7 @@
 MODULE solver_class
     use matrix_class
+    use tridiagonal_matrix_class
+    use compressed_matrix_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: solver_class.f90                                               !!
   !!                                                                           !!
@@ -18,6 +20,7 @@ MODULE solver_class
   !!      changing fission source until keff is changed.                       !!
   !!    23/03/2021: Added function to calculate x_coordinate, and normalisation!!
   !!    24/03/2021: Corrected scatter_source to use correct group's flux       !!
+  !!    29/04/2021: Added funciton for compressed matrix solve                 !!
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -52,7 +55,7 @@ MODULE solver_class
     ! Now add methods
     contains
 
-    SUBROUTINE multigroup_solver_sub(this, phi, keff, regions, matrix_array,source_flux,x_coordinate)
+    SUBROUTINE multigroup_solver_sub(this, phi, keff, regions, matrix_array,c_matrix,source_flux,x_coordinate)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -67,7 +70,8 @@ MODULE solver_class
         real(dp),allocatable,dimension(:,:) :: source
         real(dp),ALLOCATABLE,DIMENSION(:) :: source_temp
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-        class(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
+        type(tridiagonal_matrix),INTENT(IN),dimension(:),OPTIONAL :: matrix_array ! array of tridiagonal matrices
+        type(compressed_matrix),INTENT(IN),DIMENSION(:),OPTIONAL :: c_matrix ! array of compressed matrices.
         integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp) :: convergence_criterion
         integer :: region_iterator
@@ -94,7 +98,13 @@ MODULE solver_class
             total_steps = total_steps + regions(region_iterator)%get_steps()
             boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the edge of last boundary
         end do
-        groups = size(matrix_array)
+        if(present(matrix_array)) then
+            groups = size(matrix_array)
+        else if(present(c_matrix)) then
+            groups = size(c_matrix)
+        else
+            stop 'need a matrix array for solver'
+        end if
         allocate(source(1:total_steps+1,1:groups))
         allocate(f_rate(1:total_steps+1))
         allocate(source_temp(1:total_steps+1))
@@ -120,7 +130,7 @@ MODULE solver_class
                 !
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
-                call this%flux_iteration(phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,boundary_tracker,&
+                call this%flux_iteration(phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,c_matrix,boundary_tracker,&
                 convergence_criterion,total_steps,groups,f_rate)
                 !
                 ! Now calculate next keff and store the previous
@@ -147,7 +157,8 @@ MODULE solver_class
                         total_steps,phi,regions,boundary_tracker)
                     end do
                     do group=1,groups
-                        phi(:,group)=matrix_array(group)%solve(source(:,group))
+                        if (present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
+                        if (present(c_matrix)) phi(:,group)=matrix_array(group)%solve(source(:,group))
                     end do
                     exit
                 end if
@@ -162,9 +173,12 @@ MODULE solver_class
             ! Do loop to perform iteration on energy groups (continues till convergence of phi)
             !
             do
-                call this%fixed_source_iteration(groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array)
+                call this%fixed_source_iteration(groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array,&
+                c_matrix)
                 ! Now this iteration will continue until the fluxes converge
                 phi_iterations=phi_iterations+1
+                print*,'min=',(minval(abs(phi-phi_temp))/maxval(phi))
+                print*,'phi=',(phi(1,1))
                 if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
                 ! This exits the do loop for flux iterations
             end do
@@ -180,7 +194,7 @@ MODULE solver_class
         print *,'normalisation = ',normalisation,'sum(s) = ', sum(source)
     END SUBROUTINE multigroup_solver_sub
 
-    subroutine flux_iteration_sub(this,phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,boundary_tracker,&
+    subroutine flux_iteration_sub(this,phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,c_matrix,boundary_tracker,&
         convergence_criterion,total_steps,groups,f_rate)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
@@ -194,7 +208,8 @@ MODULE solver_class
         real(dp),INTENT(in) :: keff
         real(dp),INTENT(INOUT),allocatable,dimension(:,:) :: source
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-        class(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
+        type(tridiagonal_matrix),INTENT(IN),dimension(:),optional :: matrix_array ! array of tridiagonal matrices
+        type(compressed_matrix),INTENT(IN),dimension(:),optional :: c_matrix
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp),INTENT(IN) :: convergence_criterion
         integer,INTENT(IN) :: total_steps
@@ -227,7 +242,8 @@ MODULE solver_class
                 !
                 phi_temp(:,group)=phi(:,group)
                 source(:,group)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
-                phi(:,group)=matrix_array(group)%solve(source(:,group))
+                if(present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
+                if(present(c_matrix)) phi(:,group)=matrix_array(group)%solve(source(:,group))
                 ! This needs to be done for all of the groups, so loop here
             end do
             ! Now this iteration will continue until the fluxes converge
@@ -301,7 +317,8 @@ MODULE solver_class
         ! print*,'numerator=',numerator,'denominator=',denominator,'phi=',phi
     end subroutine k_iteration_sub
 
-    subroutine fixed_source_iteration_sub(this,groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array)
+    subroutine fixed_source_iteration_sub(this,groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array,&
+        c_matrix)
         !
         ! Subroutine to perfrom flux iteration on fixed source
         !
@@ -313,7 +330,8 @@ MODULE solver_class
         real(dp),allocatable,dimension(:,:) :: source
         real(dp),INTENT(IN),dimension(:,:) :: source_flux
         type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
-        class(matrix),INTENT(IN),dimension(:) :: matrix_array ! array of tridiagonal matrices
+        type(tridiagonal_matrix),INTENT(IN),dimension(:),OPTIONAL :: matrix_array ! array of tridiagonal matrices
+        type(compressed_matrix),INTENT(IN),dimension(:),OPTIONAL :: c_matrix ! array of matrices
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         integer :: region_iterator
         integer,INTENT(IN) :: total_steps
@@ -369,7 +387,9 @@ MODULE solver_class
             ! Now have the total source so can find the phi iteration for current group
             !
             phi_temp(:,group)=phi(:,group)
-            phi(:,group)=matrix_array(group)%solve(source(:,group))
+            if(present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
+            if(present(c_matrix)) phi(:,group)=c_matrix(group)%solve(source(:,group))
+            ! print*,'test S', source(:,group)
             ! This needs to be done for all of the groups, so loop here
         end do
     end subroutine fixed_source_iteration_sub

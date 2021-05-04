@@ -120,7 +120,7 @@ CONTAINS
     ! Declare calling arguments
     CLASS(region_1d),INTENT(IN) :: this ! region object
     if(.not.associated(this%lines)) stop 'Error no line associated with region'
-    get_delta_fn = this%lines%get_length()/this%lines%get_steps()
+    get_delta_fn = this%lines%get_delta()
   END FUNCTION get_delta_fn
 
   integer FUNCTION get_steps_fn(this)

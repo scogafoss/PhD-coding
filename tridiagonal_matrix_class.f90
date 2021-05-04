@@ -1,6 +1,5 @@
 MODULE tridiagonal_matrix_class
   use matrix_class
-  use region_class_1d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: matrix_class.f90                                               !!
 !!                                                                           !!
@@ -24,6 +23,7 @@ IMPLICIT NONE
 ! Type definition
 TYPE,PUBLIC,extends(matrix) :: tridiagonal_matrix ! This will be the name we instantiate
 ! Instance variables.
+PRIVATE
 real(dp), allocatable, dimension(:) :: a ! Bottom (leftmost) diagonal in matrix |b1 c1 0  0 |
 real(dp), allocatable, dimension(:) :: b ! Middle (main) diagonal in matrix     |a2 b2 c2 0 |
 real(dp), allocatable, dimension(:) :: c ! Top (rightmost) diagonal             |0  a3 b3 c3|
@@ -51,7 +51,7 @@ SUBROUTINE set_variables_sub(this, a, b, c)
   !
   IMPLICIT NONE
   ! Declare calling arguments
-  CLASS(matrix) :: this ! Matrix object
+  CLASS(tridiagonal_matrix) :: this ! Matrix object
   real(dp),INTENT(IN),dimension(:) :: a
   real(dp),INTENT(IN),dimension(:) :: b
   real(dp),INTENT(IN),dimension(:) :: c
@@ -67,9 +67,9 @@ FUNCTION solve_fn(this, source_flux) result(solution)
   !
   IMPLICIT NONE
   ! Declare calling arguments
-  CLASS(matrix),INTENT(IN) :: this ! Matrix object
+  CLASS(tridiagonal_matrix),INTENT(IN) :: this ! Matrix object
   real(dp), INTENT(IN), dimension(:) :: source_flux
-  REAL(dp), DIMENSION( SIZE(this%a) ) :: solution
+  REAL(dp), DIMENSION( SIZE(source_flux) ) :: solution
   REAL(dp), DIMENSION( SIZE(this%b) ) :: btemp
   REAL(dp), DIMENSION( SIZE(source_flux) ) :: dtemp
   REAL(dp) :: w
@@ -99,7 +99,7 @@ function get_a_fn(this) result(get_a)
   !
   implicit none
   ! Declare calling arguments
-  class(matrix),intent(in) :: this ! Matrix object
+  class(tridiagonal_matrix),intent(in) :: this ! Matrix object
   real(dp), allocatable, dimension(:) :: get_a
   get_a = this%a
 end function get_a_fn
@@ -110,7 +110,7 @@ function get_b_fn(this) result(get_b)
   !
   implicit none
   ! Declare calling arguments
-  class(matrix),intent(in) :: this ! Matrix object
+  class(tridiagonal_matrix),intent(in) :: this ! Matrix object
   real(dp), allocatable, dimension(:) :: get_b
   get_b = this%b
 end function get_b_fn
@@ -121,7 +121,7 @@ function get_c_fn(this) result(get_c)
   !
   implicit none
   ! Declare calling arguments
-  class(matrix),intent(in) :: this ! Matrix object
+  class(tridiagonal_matrix),intent(in) :: this ! Matrix object
   real(dp), allocatable, dimension(:) :: get_c
   get_c = this%c
 end function get_c_fn

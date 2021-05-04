@@ -1,6 +1,5 @@
 MODULE compressed_matrix_class
     use precision_set
-    use region_class_1d
     use matrix_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: compressed_matrix_class.f90                                    !!
@@ -84,6 +83,7 @@ MODULE compressed_matrix_class
     integer :: j
     integer :: j_index
     if (size(vector)/=this%columns) stop 'Incompatible dimensions between vector and matrix.'
+    solution=0_dp
     do i = 1, this%rows
         do j = 1, this%row_index(i+1)-this%row_index(i)
             j_index=this%column_index(j+this%row_index(i)-1)
@@ -92,25 +92,31 @@ MODULE compressed_matrix_class
     end do
 END function vector_multiply_fn
 
-  function solve_fn(this,source,regions) result(solution)
+  function solve_fn(this,source_flux) result(solution)
     !
     ! Function to return solution to Ax=B matrix equation for a square matrix
     !
     implicit none
     ! Declare calling arguments
     class(compressed_matrix),intent(in) :: this ! Matrix object
-    real(dp),INTENT(INOUT),DIMENSION(:) :: source ! Source B in matrix equation
-    type(region_1d),DIMENSION(:),INTENT(IN) :: regions
-    real(dp), dimension(size(source)) :: solution ! x in matrix equation
-    real(dp),dimension(size(source)) :: residual ! r in equation
+    real(dp),INTENT(IN),DIMENSION(:) :: source_flux ! Source B in matrix equation
+    real(dp), dimension(size(source_flux)) :: solution ! x in matrix equation
+    real(dp),dimension(size(source_flux)) :: residual ! r in equation
     real(dp) :: rsold ! r'r
     real(dp) :: rsnew ! r'r
-    real(dp),dimension(size(source)) :: Ap ! matrix * residual, useful constant
-    real(dp),dimension(size(source)) :: basis_vector ! p in equation
+    real(dp),dimension(size(source_flux)) :: Ap ! matrix * residual, useful constant
+    real(dp),dimension(size(source_flux)) :: basis_vector ! p in equation
     real(dp) :: convergence
     real(dp) :: alpha
     integer :: i,j
     ! Check matrix is compatable with CG method
+    !!!!!!!!!!!
+    do i=1,this%rows
+        do j=1,this%columns
+            print*,i,j,'=',this%get_element(i,j)
+        enddo
+    enddo
+    !!!!!!!!!!!
     if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
     do i=1,this%rows
         do j=1, this%columns
@@ -118,13 +124,14 @@ END function vector_multiply_fn
         end do
     end do
     ! Initial values
-    convergence = 1e-5
-    solution=0
-    residual = source - this%vector_multiply(solution)
+    convergence = 1e-5_dp
+    solution=0_dp
+    residual=0_dp
+    residual = source_flux - this%vector_multiply(solution)
     basis_vector = residual
     rsold = dot_product(residual,residual)
     ! Loop
-    do i=1,size(source) ! Shouldn't have to loop more than the degrees of freedom
+    do i=1,size(source_flux) ! Shouldn't have to loop more than the degrees of freedom
         Ap = this%vector_multiply(basis_vector)
         alpha = rsold / (dot_product(basis_vector,Ap))
         solution = solution + alpha * basis_vector
@@ -186,11 +193,9 @@ END function vector_multiply_fn
         this%values=value
         this%column_index=column
         this%row_index(row+1:this%rows+1)=2
-        print*,'here, and rowindexes =',this%row_index
     ! If already allocated
     else
         if (this%get_element(row,column) /= 0) stop 'Requested row and column already filled by non-zero value.'
-        print*,'testing'
         ! Add to size of stored arrays.
         temp_values=this%values
         temp_columns=this%column_index

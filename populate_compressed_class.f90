@@ -21,27 +21,27 @@ MODULE populate_compressed_class
 
   IMPLICIT NONE
   ! Type definition
-  TYPE,PUBLIC,extends(populate) :: populate_compressed ! This will be the name we instantiate
+  TYPE,PUBLIC,extends(populate) :: populate_compressed 
   ! Instance variables.
   CONTAINS
   ! Bound procedures
-  procedure,public :: populate => populate_sub ! Discretises input region array.
+  procedure,public :: populate_matrix => populate_matrix_sub ! Discretises input region array.
   procedure,public :: allocate_matrix => allocate_matrix_sub ! Allocates the matrix within discretise_regions_sub
   procedure,public :: discretisation => discretisation_sub ! Performs actual discretisation process
 END TYPE populate_compressed
   ! Restrict access to the actual procedure names
-  private :: discretise_regions_sub
+  private :: populate_matrix_sub
   private :: allocate_matrix_sub
   private :: discretisation_sub
   CONTAINS
 
-  SUBROUTINE populate_sub(this,c_matrix,regions,group)
+  SUBROUTINE populate_matrix_sub(this,in_matrix,regions,group)
     !
     ! Subroutine to perform discretisation.
     !
     implicit none
-    class(compressed_nuclear_matrix), intent(out) :: this ! Nuclear_matrix object
-    type(compressed_matrix),INTENT(INOUT) :: c_matrix
+    class(populate_compressed), intent(inout) :: this ! Nuclear_matrix object
+    type(compressed_matrix),INTENT(INOUT) :: in_matrix
     type(region_1d), intent(in), dimension(:) :: regions ! Region object
     integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
     integer :: total_steps ! Total steps across regions.
@@ -49,12 +49,12 @@ END TYPE populate_compressed
     !
     ! Allocate the class array sizes.
     !
-    call this%allocate_matrix(c_matrix,total_steps,regions,boundary_tracker)
+    call this%allocate_matrix(in_matrix,total_steps,regions,boundary_tracker)
     !
     ! Perform the actual discretisation
     !
-    call this%discretisation(c_matrix,regions,boundary_tracker,group)
-  END SUBROUTINE populate_sub
+    call this%discretisation(in_matrix,regions,boundary_tracker,group)
+  END SUBROUTINE populate_matrix_sub
 
   subroutine allocate_matrix_sub(this,c_matrix,total_steps,regions,boundary_tracker)
     !
@@ -62,7 +62,7 @@ END TYPE populate_compressed
     !
     implicit none
     ! Declare calling arguments
-    class(compressed_nuclear_matrix), intent(out) :: this ! Nuclear_matrix object
+    class(populate_compressed), intent(out) :: this ! Nuclear_matrix object
     type(compressed_matrix),INTENT(INOUT) :: c_matrix
     integer,INTENT(OUT) :: total_steps
     type(region_1d),INTENT(IN), DIMENSION(:) :: regions
@@ -71,13 +71,9 @@ END TYPE populate_compressed
     total_steps = 0
     do region_iterator =1,size(regions)
       total_steps = total_steps + regions(region_iterator)%get_steps()
-      if(region_iterator==size(regions)) then
-        boundary_tracker(region_iterator) = total_steps ! Remove the very last node, store the second to last node (the last node is same as first so no need to repeat)
-      else
-        boundary_tracker(region_iterator) = total_steps + 1 ! Stores the boundary between regions
-      end if
+      boundary_tracker(region_iterator) = total_steps + 1
     end do
-    call c_matrix%set_size(total_steps,total_steps)
+    call c_matrix%set_size(total_steps+1,total_steps+1)
   end subroutine allocate_matrix_sub
 
   subroutine discretisation_sub(this,c_matrix,regions,boundary_tracker,group)
@@ -86,7 +82,7 @@ END TYPE populate_compressed
     !
     implicit none
     ! Declare calling arguments
-    class(compressed_nuclear_matrix), intent(INOUT) :: this ! Nuclear_matrix object
+    class(populate_compressed), intent(INOUT) :: this ! Nuclear_matrix object
     type(compressed_matrix),INTENT(INOUT) :: c_matrix
     type(region_1d),INTENT(IN), DIMENSION(:) :: regions
     INTEGER,INTENT(IN), DIMENSION(:) :: boundary_tracker
@@ -99,7 +95,7 @@ END TYPE populate_compressed
     real(dp) :: temp2
     integer,INTENT(IN) :: group
     ! Set the variables for the first region.
-    delta = regions(1)%get_length()/regions(1)%get_steps()
+    delta = regions(1)%get_delta()
     absorption = regions(1)%get_removal(group)
     D = 1 / (3 * (regions(1)%get_absorption(group)+(regions(1)%get_scatter(group))))
     region_iterator = 1
@@ -109,16 +105,15 @@ END TYPE populate_compressed
         ! D = ((1/(3*absorption))*delta+(1/(3*(regions(region_iterator+1)%get_absorption()))*(regions(region_iterator+1)%get_length()&
         ! /(regions(region_iterator+1)%get_steps()))))/(delta+(regions(region_iterator+1)%get_length()&
         ! /(regions(region_iterator+1)%get_steps())))
-        absorption = ((absorption*delta)+(regions(region_iterator+1)%get_removal(group)*regions(region_iterator+1)%get_length()&
-        /(regions(region_iterator+1)%get_steps())))/(delta+(regions(region_iterator+1)%get_length()&
-        /(regions(region_iterator+1)%get_steps())))
-        delta = (delta + (regions(region_iterator+1)%get_length()/(regions(region_iterator+1)%get_steps())))/2
+        absorption = (((absorption*delta)+(regions(region_iterator+1)%get_removal(group)*regions(region_iterator+1)%get_delta())))/&
+        (delta+(regions(region_iterator+1)%get_delta()))
+        delta = (delta + (regions(region_iterator+1)%get_delta()))/2
         ! region_iterator=region_iterator+1
       end if
       ! Check if just after a boudary, where values are updated to new region
       if (i==boundary_tracker(region_iterator)+1 .and. region_iterator < size(regions)) then
         region_iterator=region_iterator+1
-        delta = regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
+        delta = regions(region_iterator)%get_delta()
         absorption = regions(region_iterator)%get_removal(group)
         D = 1 / (3 * (regions(region_iterator)%get_absorption(group)+(regions(region_iterator)%get_scatter(group))))
       end if
@@ -129,20 +124,17 @@ END TYPE populate_compressed
       if(i == boundary_tracker(region_iterator) .and. i /= c_matrix%get_rows()) then
         ! ai,i-1
         temp = -((1/(3*(regions(region_iterator)%get_absorption(group)+&
-        (regions(region_iterator)%get_scatter(group)))))/(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))
+        (regions(region_iterator)%get_scatter(group)))))/(regions(region_iterator)%get_delta()))
         call c_matrix%add_element(temp,i,i-1)
         ! ai,i
-        temp = absorption + ((1/(3*(regions(region_iterator)%get_absorption(group)+&
-        (regions(region_iterator)%get_scatter(group)))))/(regions(region_iterator)%get_length()/&
-        regions(region_iterator)%get_steps()))+((1/(3*(regions(region_iterator+1)%get_absorption(group)+&
-        (regions(region_iterator+1)%get_scatter(group)))))/(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps()))
+        temp = absorption*delta + ((1/(3*(regions(region_iterator)%get_absorption(group)+&
+        (regions(region_iterator)%get_scatter(group)))))/(regions(region_iterator)%get_delta()))+&
+        ((1/(3*(regions(region_iterator+1)%get_absorption(group)+&
+        (regions(region_iterator+1)%get_scatter(group)))))/(regions(region_iterator+1)%get_delta()))
         call c_matrix%add_element(temp,i,i)
         ! ai,i+1
         temp = -((1/(3*(regions(region_iterator+1)%get_absorption(group)+&
-        (regions(region_iterator+1)%get_scatter(group)))))/(regions(region_iterator+1)%get_length()/&
-        regions(region_iterator+1)%get_steps()))
+        (regions(region_iterator+1)%get_scatter(group)))))/(regions(region_iterator+1)%get_delta()))
         call c_matrix%add_element(temp,i,i+1)
     !
     !------------------------------------------------------------------------------
@@ -152,16 +144,16 @@ END TYPE populate_compressed
         ! ai,i-1
         if (i==1) then
           temp= -(1 / (3 * (regions(size(regions))%get_absorption(group)+(regions(size(regions))%get_scatter(group)))))/&
-          (regions(size(regions))%get_delta())
+          (regions(size(regions))%get_delta()) ! -D_last/delta_last
           call c_matrix%add_element(temp,i,c_matrix%get_columns())
           call c_matrix%add_element(temp,c_matrix%get_rows(),i) ! Both corners are equal
           temp2= -(1 / (3 * (regions(1)%get_absorption(group)+(regions(1)%get_scatter(group)))))/&
-          (regions(size(regions))%get_delta())
-          call c_matrix%add_element(temp,i,i)
+          (regions(size(regions))%get_delta()) !-D_first/delta_first
+          call c_matrix%add_element(temp2,i,i+1)
           temp = (-temp)+(-temp2)+(((regions(size(regions))%get_delta()+regions(1)%get_delta())/2)*&
           weighted_average(regions(size(regions))%get_delta(),regions(1)%get_delta(),regions(size(regions))%get_removal(group),&
           regions(1)%get_removal(group)))
-          call c_matrix%add_element(temp,i,i+1)
+          call c_matrix%add_element(temp,i,i)
 
         else if (i==c_matrix%get_rows()) then
           temp = -(1 / (3 * (regions(size(regions))%get_absorption(group)+(regions(size(regions))%get_scatter(group)))))/&
@@ -177,7 +169,7 @@ END TYPE populate_compressed
           ! ai,i+1
           call c_matrix%add_element(temp,i,i+1)
           ! ai,i
-          temp = absorption + (D/(delta))
+          temp = (absorption*delta) + (2*D/(delta))
           call c_matrix%add_element(temp,i,i)
         end if
       END IF
