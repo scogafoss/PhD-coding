@@ -83,7 +83,7 @@ MODULE compressed_matrix_class
     integer :: j
     integer :: j_index
     if (size(vector)/=this%columns) stop 'Incompatible dimensions between vector and matrix.'
-    solution=0_dp
+    solution(:)=0_dp
     do i = 1, this%rows
         do j = 1, this%row_index(i+1)-this%row_index(i)
             j_index=this%column_index(j+this%row_index(i)-1)
@@ -111,11 +111,12 @@ END function vector_multiply_fn
     integer :: i,j
     ! Check matrix is compatable with CG method
     !!!!!!!!!!!
-    do i=1,this%rows
-        do j=1,this%columns
-            print*,i,j,'=',this%get_element(i,j)
-        enddo
-    enddo
+    ! do i=1,this%rows
+    !     do j=1,this%columns
+    !         print*,i,j,'=',this%get_element(i,j)
+    !     enddo
+    ! enddo
+    ! print*,source_flux
     !!!!!!!!!!!
     if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
     do i=1,this%rows

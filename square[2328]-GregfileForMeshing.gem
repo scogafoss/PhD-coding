@@ -1,0 +1,126 @@
+Title: square @doesnt matter what title
+
+problem radiation @solve neutron problem
+mode direct @ forward problem
+case fixed      @ fixed problem
+geometry xy 	@ xy geometry or rz
+angle 1 @keep at 1 for diffusion, for transport increase to odd numbers
+scatter 0 @ anisotropy of the scatter, transport will be higher if can get cross section from wims or serpent must always be same or lower than angle
+groups 1 @
+upscatter No
+monitor pcgin pcgout@ -v when run event will monitor how easily it converges, prints convergence
+
+
+@
+@ - pre-allocate real and integer memory for EVENT neutron transport code to run properly.
+@
+
+sizeil 200000000@ allocates memory should be enough
+sizerl 200000000
+SIZEIM 200000000
+SIZERM 200000000
+
+@
+@ - Define points for unit square geometry
+@
+
+pnt p1a 0.0 0.0 0.0@assumes third coordinate is zero
+pnt p2a 1.0 0.0 0.0
+
+pnt p1b 0.0 1.0 0.0
+pnt p2b 1.0 1.0 0.0
+
+
+@
+@ - Define lines joining the points
+@
+
+line l1a p1a p2a@ connecting lines
+line l1b p1b p2b
+line l1ab p1a p1b
+line l2ab p2a p2b
+
+@
+@ - Divide lines
+@
+
+divide 100 l1a l1b @ Greg has divided up all the x lines
+
+divide 100 l1ab l2ab @ divided up all the y lines good to have same divides
+
+
+@
+@
+@ - DEFINE MATERIALS
+@
+@
+
+@ - sig_t sig_a nu*sig_f sig_s
+material mat1 1.0 0.5 0.0 0.5
+
+@
+@ - Define extraneous source
+@
+
+source sour1 1.0
+
+surface lhs_source 1.5
+surface rhs_source 2.3
+
+@
+@ - Define the whole region
+@
+
+region sqr l1a l2ab l1b l1ab@ lines for region must be joined in a way that make sense @sqr is just a label not a keyword, labelled as bottom, right, top, left, i.e. clockwise
+
+@
+@ - Assign materials to region
+@
+
+properties sqr mat1 sour1@ assigning to the square
+
+@
+@ - how the mesh will be formed
+@
+
+mesh sqr quad blend@ draws lines up into individual squares, more options too, for squares use quad or triang blend
+
+@
+@ - define boundary conditions
+@
+
+boundary vacuum l1a l1b l1ab l2ab
+
+@boundary zero l1b
+
+@boundary zero l1ab
+
+@boundary zero l2ab
+
+
+@
+@ - Averages over the whole region
+@
+
+average 1 sqr@prints region average
+
+@
+@ fill up lines and with nodes and elements
+@
+
+fill@fills the event file
+
+@
+@ want to use paraview
+@
+
+dumpvtu
+
+@
+@ output data to default file
+@
+
+data
+
+
+stop

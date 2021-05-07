@@ -10,8 +10,9 @@ MODULE line_class
 !!  Purpose: Class to read in and store dimensional information from file.   !!
 !!                                                                           !!
 !!  Revisions:                                                               !!
-!!    05/02/2021 : Updated how line was read in. Added line ID               !!
-!!    30/04/2021 : Added delta to variables                                  !!
+!!    05/02/2021: Updated how line was read in. Added line ID                !!
+!!    30/04/2021: Added delta to variables                                   !!
+!!    07/05/2021: Added dimension to store what direction line points        !!  
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -26,6 +27,7 @@ real(dp) :: length ! Length of region
 integer :: steps ! Number of nodes
 integer :: geomtype ! Type of geometry (0:slab, 1:cylindrical, 2:spherical)
 real(dp) :: delta ! Stores the step size
+integer :: dimension ! 1 = x/r, 2 = y, 3 = z
 
 CONTAINS
 ! Bound procedures
@@ -39,6 +41,7 @@ procedure,public ::set_id => set_id_sub ! Allows name to be set
 procedure,public ::get_id => get_id_fn ! Returns ID
 procedure,public :: get_delta => get_delta_fn ! Returns delta
 procedure,public :: set_steps => set_steps_sub ! Directly sets the steps - used for periodic BC
+procedure,public :: get_dimension => get_dimension_fn ! Returns dimension of the line
 END TYPE line
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
@@ -51,10 +54,11 @@ private :: set_id_sub
 private :: get_id_fn
 private :: get_delta_fn
 private :: set_steps_sub
+private :: get_dimension_fn
 ! Now add methods
 CONTAINS
 
-SUBROUTINE set_variables_sub(this, start, length, steps, geomtype)
+SUBROUTINE set_variables_sub(this, start, length, steps, geomtype, dimension)
   !
   ! Subroutine to set the variables
   !
@@ -65,12 +69,14 @@ SUBROUTINE set_variables_sub(this, start, length, steps, geomtype)
   real(dp),INTENT(IN) :: length
   integer,INTENT(IN) :: steps
   integer,INTENT(IN) :: geomtype
+  integer, INTENT(IN) :: dimension
   ! Save data
   this%start = start
   this%length = length
   this%steps = steps
   this%geomtype = geomtype
   this%delta = this%length / this%steps
+  this%dimension = dimension
 END SUBROUTINE set_variables_sub
 
 SUBROUTINE read_variables_sub(this, filename)
@@ -85,7 +91,7 @@ SUBROUTINE read_variables_sub(this, filename)
   integer :: lineskip ! skips desired number of lines.
   character(80) :: line ! Used to test the line.
   real(dp) :: start, length
-  integer steps, geomtype
+  integer :: steps, geomtype, dimension
   open(10,file=filename,iostat=status)
   ! Read through file.
   do
@@ -111,17 +117,15 @@ SUBROUTINE read_variables_sub(this, filename)
           read(10,'(A)',iostat=status) line
           if (index(line,trim(this%id))/=0) then ! If the line contains the name we are looking for
             backspace (unit = 10) ! Goes back to start of line
-            read(10,*,iostat=status) start,length,steps,line,line
+            read(10,*,iostat=status) start,length,steps,line,dimension
             this%start = start
             this%length = length
             this%steps = steps
             this%delta = length / steps
+            this%dimension = dimension
             exit
           end if
-          if (index(line,'---')/=0) THEN
-            print *, 'No match for line name in input deck'
-            exit ! Exit the do loop when end of section reached.
-          end if
+          if (index(line,'---')/=0) stop 'No match for line name in input deck'
         end do
       else if (line == 'Geometry - 0: slab, 1: cylindrical, 2: spherical') then
         read(10,*,iostat=status) line,geomtype
@@ -213,5 +217,15 @@ real(dp) FUNCTION get_delta_fn(this)
   CLASS(line),INTENT(IN) :: this ! Line object
   get_delta_fn = this%delta
 END FUNCTION get_delta_fn
+
+integer FUNCTION get_dimension_fn(this)
+  !
+  ! Function to return right BC
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(line),INTENT(IN) :: this ! Line object
+  get_dimension_fn = this%dimension
+END FUNCTION get_dimension_fn
 
 END MODULE line_class

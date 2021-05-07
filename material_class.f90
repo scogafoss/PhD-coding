@@ -14,6 +14,7 @@ MODULE material_class
 !!    16/02/2021: Added material macroscopic fission cross section           !!
 !!    08/03/2021: Added macroscopic scatter cross section array, changed     !!
 !!      source_flux, absorption, fission probability and fission to arrays.  !!
+!!    07/05/2021: Added top and bottom boundary conditions and albedo        !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -33,6 +34,10 @@ real(dp),allocatable,dimension(:) :: absorption ! Macroscopic absorption cross s
 real(dp),allocatable,dimension(:) :: fission ! Macroscopic fission cross section G array
 real(dp),allocatable,dimension(:) :: fission_prob ! Macroscopic fission cross section G array
 real(dp),allocatable,dimension(:,:) :: scatter ! Macroscopic scatter cross section GxG matrix
+character(80) :: top_boundary ! Boundary conditon on the top edge of mesh
+character(80) :: bottom_boundary ! Boundary at the bottom edge
+real(dp) :: top_albedo ! Top albedo value
+real(dp) :: bottom_albedo ! Bottom albedo value
 
 CONTAINS
 ! Bound procedures
@@ -51,6 +56,10 @@ procedure,public :: get_fission => get_fission_fn ! Returns Nu-Sigma_f
 procedure,public :: get_removal => get_removal_fn ! Returns (and calculates) the removal cross section
 procedure,public :: get_scatter => get_scatter_fn ! Returns scatter matrix
 procedure,PUBLIC :: get_probability => get_probability_fn ! Returns fission probability
+PROCEDURE,PUBLIC :: get_top_boundary => get_top_boundary_fn ! Returns top BC
+PROCEDURE,PUBLIC :: get_bottom_boundary => get_bottom_boundary_fn ! Returns bottom BC
+PROCEDURE,PUBLIC :: get_top_albedo => get_top_albedo_fn ! Returns top albedo
+PROCEDURE,PUBLIC :: get_bottom_albedo => get_bottom_albedo_fn ! Returns bottom albedo
 END TYPE material
 ! Restrict access to the actual procedure names
 PRIVATE :: set_variables_sub
@@ -68,11 +77,16 @@ private :: get_fission_fn
 private :: get_removal_fn
 private :: get_scatter_fn
 private :: get_probability_fn
+private :: get_top_boundary_fn
+private :: get_bottom_boundary_fn
+private :: get_top_albedo_fn
+private :: get_bottom_albedo_fn
 ! Now add methods
 CONTAINS
 
 SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
-   right_albedo, surface_source, source_flux, absorption, fission, scatter)
+   right_albedo, surface_source, source_flux, absorption, fission, scatter,&
+   top_boundary, bottom_boundary)
   !
   ! Subroutine to set the variables
   !
@@ -80,6 +94,7 @@ SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
   ! Declare calling arguments
   CLASS(material) :: this ! Line object
   character(len=*),INTENT(IN) :: left_boundary, right_boundary
+  character(len=*),INTENT(IN) :: top_boundary, bottom_boundary
   real(dp),INTENT(IN) :: left_albedo, right_albedo, surface_source
   real(dp),INTENT(IN), dimension(:) :: source_flux, absorption, fission
   real(dp),INTENT(IN), dimension(:,:) :: scatter
@@ -93,6 +108,8 @@ SUBROUTINE set_variables_sub(this, left_boundary, right_boundary, left_albedo, &
   this%absorption = absorption
   this%fission = fission
   this%scatter = scatter
+  this%top_boundary = top_boundary
+  this%bottom_boundary = bottom_boundary
 END SUBROUTINE set_variables_sub
 
 SUBROUTINE read_variables_sub(this, filename)
@@ -106,11 +123,11 @@ SUBROUTINE read_variables_sub(this, filename)
   integer :: status ! Checks if end of file.
   integer :: lineskip ! skips desired number of lines.
   character(80) :: line ! Used to test the line.
-  real(dp) :: left_albedo, right_albedo
+  real(dp) :: left_albedo, right_albedo, bottom_albedo, top_albedo
   real(dp), allocatable, dimension(:) :: absorption, source_flux, fission, probability
   real(dp), allocatable, dimension(:,:) :: scatter
   real(dp) :: surface_source
-  character(80) :: left_boundary, right_boundary
+  character(80) :: left_boundary, right_boundary, bottom_boundary, top_boundary
   integer groups
   open(10,file=filename,iostat=status)
   ! Read through file.
@@ -154,6 +171,8 @@ SUBROUTINE read_variables_sub(this, filename)
       else if (line == 'Boundaries-') then
         read(10,*,iostat=status) line,left_boundary,right_boundary
         read(10,*,iostat=status) line,left_albedo,right_albedo
+        read(10,*,iostat=status) line,bottom_boundary,top_boundary
+        read(10,*,iostat=status) line,bottom_albedo,top_albedo
         do lineskip = 1,2 ! Skips two lines.
           read(10,*)
         end do
@@ -377,5 +396,45 @@ FUNCTION get_probability_fn(this,index) result(value)
   real(dp) :: value
   value = this%fission_prob(index)
 END FUNCTION get_probability_fn
+
+character(80) FUNCTION get_top_boundary_fn(this)
+  !
+  ! Function to return left BC
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Material object
+  get_top_boundary_fn = this%top_boundary
+END FUNCTION get_top_boundary_fn
+
+character(80) FUNCTION get_bottom_boundary_fn(this)
+  !
+  ! Function to return left BC
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Line object
+  get_bottom_boundary_fn = this%bottom_boundary
+END FUNCTION get_bottom_boundary_fn
+
+real(dp) FUNCTION get_top_albedo_fn(this)
+  !
+  ! Function to return right BC
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Line object
+  get_top_albedo_fn = this%top_albedo
+END FUNCTION get_top_albedo_fn
+
+real(dp) FUNCTION get_bottom_albedo_fn(this)
+  !
+  ! Function to return right BC
+  !
+  IMPLICIT NONE
+  ! Declare calling arguments
+  CLASS(material),INTENT(IN) :: this ! Line object
+  get_bottom_albedo_fn = this%bottom_albedo
+END FUNCTION get_bottom_albedo_fn
 
 end module material_class

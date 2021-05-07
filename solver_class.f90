@@ -507,10 +507,10 @@ MODULE solver_class
             x_coordinate(i) = regions(region_iterator)%get_start()
             ! At a boundnary
             else if (i == boundary_tracker(region_iterator) .and. i /= total_steps+1) then
-            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
+            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_delta()
             region_iterator = region_iterator + 1
             else
-            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_length()/regions(region_iterator)%get_steps()
+            x_coordinate(i) = x_coordinate(i-1) + regions(region_iterator)%get_delta()
             end if
         end do
     end subroutine x_coordinates_sub
