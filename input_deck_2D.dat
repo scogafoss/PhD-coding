@@ -6,12 +6,12 @@ Groups
 Total: 1
 Fission probability
 1.0
-Dimension: 1
+Dimension: 2
 Coordinate: rz
 Max_Dims: 100.0 40.0
 Region Number, Linex, Liney, Linez, Material ID
-1 l01 m01
-2 l02 m02
+1 l01 l02 m01
+2 l03 l02 m02
 
 ------------MATERIAL SPECIFICATION METHOD------------------
 material_by_correlation
@@ -30,9 +30,10 @@ m02
 start, length, steps, ref (lxx), dim (x/r,y,z)
 Lines
 Scheme: box
-Num: 1
+Num: 3
 0.0 0.5 100 l01 1
-0.5 0.5 100 l02 1
+0.0 0.5 100 l02 2
+0.5 0.5 100 l03 1
 
 -----------------------------------------------
 FluxType
@@ -44,9 +45,9 @@ v
 
 -----------------DATA IN CRITERIA SPEC--------
 Boundaries-
-left_right_boundary p p
+left_right_boundary r r
 left_right_albedo 0.0 0.5
-bottom_top_boundary a a
+bottom_top_boundary r r
 bottom_top_albedo 0.0 0.0
 surface_source 3
 

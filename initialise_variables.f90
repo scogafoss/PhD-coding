@@ -183,7 +183,7 @@ contains
 
   subroutine correct_source(source,regions,boundary_tracker)
     !
-    ! Subroutine to multiply source values by its delta value
+    ! Subroutine to multiply source values by its delta value for periodic BC
     !
     real(dp),INTENT(INOUT),DIMENSION(:) :: source
     type(region_1d),INTENT(IN),DIMENSION(:) :: regions
