@@ -1,5 +1,6 @@
 module initialise_variables
   use region_class_1d
+  use region_class_2d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: initialise_variables.f90                                       !!
 !!                                                                           !!
@@ -15,20 +16,22 @@ module initialise_variables
 !!    09/03/2021: Add funcitonality to calculate source flux for each group, !!
 !!      and checks if source is fission or volumetric, source flux matrix.   !!
 !!    12/03/2021: Corrected material ID reading to not repeat IDs            !!
+!!    10/05/2021: Check for 2D conditions                                    !!
 !!                                                                           !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 IMPLICIT NONE
 contains
 
-  subroutine initialise(filename,regions,lines,materials,source_flux,groups)
+  subroutine initialise(filename,lines,materials,source_flux,groups,regions,regions2)
     character(len=*), intent(in) :: filename
     type(region_1d), intent(inout), allocatable, dimension(:) :: regions
+    type(region_2d), intent(inout), allocatable, dimension(:) :: regions2
     type(line),  intent(inout), allocatable, dimension(:) :: lines
     type(material), intent(inout), allocatable, dimension(:) :: materials
     integer,INTENT(INOUT) :: groups
     real(dp),intent(out), allocatable, dimension(:,:) :: source_flux ! Source flux array
     integer,allocatable,dimension(:) :: boundary_tracker
-    integer :: i
+    integer :: i,xlines,ylines
     integer :: j
     INTEGER :: k
     integer :: source_tracker
@@ -37,10 +40,11 @@ contains
     integer :: total_steps
     integer :: total_regions
     integer :: total_materials
-    integer :: total_groups
+    integer :: total_groups,dimension
     character(80) :: file_line
     character(80) :: mid ! Material ID
     character(80) :: lid ! Line ID
+    character(80) :: lid2
     character(80) :: fission_or_volumetric ! ID for a volumetric or fission source problem
     open(11,file=filename,iostat=status)
     ! Read through file.
@@ -51,21 +55,32 @@ contains
         read(11,*,iostat=status) file_line, total_regions
         allocate(regions(1:total_regions))
         allocate(boundary_tracker(1:total_regions))
-        allocate(lines(1:total_regions))
       else if (file_line == 'Materials') then
         read(11,*,iostat=status) file_line, total_materials
         allocate(materials(1:total_materials))
       else if (file_line == 'Groups') then
         read(11,*,iostat=status) file_line, total_groups
         groups = total_groups
+      else if(index(file_line,'Dimension:')/=0) then
+        backspace(unit=11) ! Go back to the start of the line
+        read(11,*,iostat=status) file_line, dimension
       else if (file_line == 'Region Number, Linex, Liney, Linez, Material ID') then
         do i = 1,total_regions! Loop until no more regions
-          read(11,*,iostat=status) file_line, lid, mid
+          if (dimension==1) then
+            read(11,*,iostat=status) file_line, lid, mid
+            call regions(i)%set_line_id(lid)
+            call regions(i)%set_material_id(mid)
+            allocate(lines(1:total_regions))
+            ! Can immediately set the line ID
+            call lines(i)%set_id(lid)
+          elseif(dimension==2) THEN
+            read(11,*,iostat=status) file_line, lid,lid2, mid
+            call regions2(i)%set_line_id(lid,1)
+            call regions2(i)%set_line_id(lid2,2)
+            call regions2(i)%set_material_id(mid)
+          endif
+            ! Can immediately set the line ID
           ! Set the line and material ID's associated with the region
-          call regions(i)%set_line_id(lid)
-          call regions(i)%set_material_id(mid)
-          ! Can immediately set the line ID
-          call lines(i)%set_id(lid)
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !lines(i)%read_variables(filename) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DO THIS ONCE THE FILE HAS BEEN CLOSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -86,6 +101,16 @@ contains
           !lines(i)%read_variables(filename) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DO THIS ONCE THE FILE HAS BEEN CLOSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           ! Add material ID to dummy list of ID's if it has not been recorded already.
+        end do
+      else if (file_line == 'start, length, steps, ref (lxx), dim (x/r,y,z)'.and.dimension==2) then ! only do this for 2D (and later 3D)
+        do i =1,3
+          read(11,*,iostat=status)
+        end do
+        read(11,*,iostat=status) file_line, j
+        allocate(lines(1:j))
+        do i=1,size(lines)
+          read(11,*,iostat=status) file_line, file_line,file_line,lid,file_line
+          call lines(i)%set_id(lid)
         end do
       else if (file_line == "Source Type - (f)ission or (v)olumetric") then
         read(11,*,iostat=status) fission_or_volumetric
