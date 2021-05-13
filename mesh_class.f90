@@ -43,6 +43,7 @@ procedure,public :: at_edge_l => at_edge_l_fn ! Boolean to test if edge of mesh 
 procedure,public :: at_edge_r => at_edge_r_fn
 procedure,public :: at_edge_t => at_edge_t_fn
 procedure,public :: at_edge_b => at_edge_b_fn
+procedure,public :: r => r_fn ! Returns the index of region which corresponds to desired i,j box
 END TYPE mesh
 ! Restrict access to the actual procedure names
 PRIVATE :: fill_coordinates_sub
@@ -55,6 +56,15 @@ private :: get_x_size_fn
 private :: get_y_size_fn
 private :: number_regions_x_fn
 private :: number_regions_y_fn
+private :: at_boundary_l_fn
+private :: at_boundary_r_fn
+private :: at_boundary_t_fn
+private :: at_boundary_b_fn
+private :: at_edge_l_fn
+private :: at_edge_r_fn
+private :: at_edge_t_fn
+private :: at_edge_b_fn
+private :: r_fn
 ! Now add methods
 CONTAINS
 
@@ -71,19 +81,19 @@ SUBROUTINE fill_coordinates_sub(this, lines)
   nodex = 0
   nodey = 0
   do i = 1, size(lines)
-  	if (lines(i)%get_dimension() == 1) then
-  		do j = 1,lines(i)%get_steps()
-  			nodex=nodex+1
-  			this%x_coordinates(nodex) = lines(i)%get_start()+(j-0.5)*lines(i)%get_delta()
-  		enddo
-  	elseif (lines(i)%get_dimension == 2) then
-  		do j = 1,steps(i)
-  			nodey = nodey +1
-  			this%y_coordinates(nodey) = lines(i)%get_start()+(j-0.5)*lines(i)%get_delta()
-  		enddo
-  	else
-  		Stop ‘Need dimension 1 or 2’
-  	endif
+    if (lines(i)%get_dimension() == 1) then
+      do j = 1,lines(i)%get_steps()
+        nodex=nodex+1
+        this%x_coordinates(nodex) = lines(i)%get_start()+(j-0.5)*lines(i)%get_delta()
+      enddo
+    elseif (lines(i)%get_dimension() == 2) then
+      do j =1, lines(i)%get_steps()
+        nodey = nodey +1
+        this%y_coordinates(nodey) = lines(i)%get_start()+(j-0.5)*lines(i)%get_delta()
+      enddo
+    else
+      Stop 'Need dimension 1 or 2'
+    endif
   enddo
 END SUBROUTINE fill_coordinates_sub
 
@@ -115,16 +125,16 @@ subroutine allocate_coordinates_sub(this,lines)
   !
   ! Allocate the number of x and y coordinates
   !
-  xtotal=0
-  ytotal=0
+  x_total=0
+  y_total=0
   do i =1,size(lines)
     if (lines(i)%get_dimension()==1) then ! x dimension
       x_total=x_total+lines(i)%get_steps()
-      x_boundaries(x_element)=x_total ! Boundary at the end of each line
+      this%x_boundaries(x_element)=x_total ! Boundary at the end of each line
       x_element=x_element+1
     elseIf (lines(i)%get_dimension()==2) then ! y dimension
       y_total=y_total+lines(i)%get_steps()
-      y_boundaries(y_element)=y_total ! Boundary at the end of each line
+      this%y_boundaries(y_element)=y_total ! Boundary at the end of each line
       y_element=y_element+1
     endif
   end do
@@ -140,7 +150,7 @@ real(dp) function get_x_fn(this,index)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   integer,intent(in) :: index
-  get_x_fn = this%x_coordinate(index)
+  get_x_fn = this%x_coordinates(index)
 end function get_x_fn
 
 real(dp) function get_y_fn(this,index)
@@ -151,7 +161,7 @@ real(dp) function get_y_fn(this,index)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   integer,intent(in) :: index
-  get_y_fn = this%y_coordinate(index)
+  get_y_fn = this%y_coordinates(index)
 end function get_y_fn
 
 real(dp) function get_x_boundary_fn(this,index)
@@ -176,27 +186,27 @@ real(dp) function get_y_boundary_fn(this,index)
   get_y_boundary_fn = this%y_boundaries(index)
 end function get_y_boundary_fn
 
-real(dp) function get_x_size_fn(this)
+integer function get_x_size_fn(this)
   !
   ! function to return x value
   !
   implicit NONE
   ! Declare calling arguments
   class(mesh),intent(in) :: this
-  get_x_size_fn = size(this%x_coordinate)
+  get_x_size_fn = size(this%x_coordinates)
 end function get_x_size_fn
 
-real(dp) function get_y_size_fn(this)
+integer function get_y_size_fn(this)
   !
   ! function to return y value
   !
   implicit NONE
   ! Declare calling arguments
   class(mesh),intent(in) :: this
-  get_y_size_fn = size(this%y_coordinate)
+  get_y_size_fn = size(this%y_coordinates)
 end function get_y_size_fn
 
-real(dp) function number_regions_x_fn(this)
+integer function number_regions_x_fn(this)
   !
   ! function to return x value
   !
@@ -206,7 +216,7 @@ real(dp) function number_regions_x_fn(this)
   number_regions_x_fn = size(this%x_boundaries)
 end function number_regions_x_fn
 
-real(dp) function number_regions_y_fn(this)
+integer function number_regions_y_fn(this)
   !
   ! function to return x value
   !
@@ -223,8 +233,129 @@ logical function at_boundary_l_fn(this,index)
   implicit NONE
   ! Declare calling arguments
   class(mesh),intent(in) :: this
-  integer,intent(in) :: index
-  number_regions_y_fn = size(this%y_boundaries)
-end function number_regions_y_fn
+  integer,intent(in) :: index ! index for the x_coordinate
+  integer :: i
+  at_boundary_l_fn =.false. ! False by default
+  if (index/=1 .and. index/=size(this%x_coordinates)) then
+    do i=1,size(this%x_boundaries)
+      if((abs(this%x_coordinates(index-1)-this%x_boundaries(i)))<1e-10_dp) at_boundary_l_fn = .true. ! If box to left is a 'boundary' box then true
+    end do
+  endif  
+end function at_boundary_l_fn
+
+logical function at_boundary_r_fn(this,index)
+  !
+  ! function to check if boundary on right side of box
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the x_coordinate
+  integer :: i
+  at_boundary_r_fn =.false. ! False by default
+  if (index/=1 .and. index/=size(this%x_coordinates)) then
+    do i=1,size(this%x_boundaries)
+      if((abs(this%x_coordinates(index)-this%x_boundaries(i)))<1e-10_dp) at_boundary_r_fn = .true. ! If box is a 'boundary' box then true
+    end do
+  endif  
+end function at_boundary_r_fn
+
+logical function at_boundary_t_fn(this,index)
+  !
+  ! function to check if boundary on top side of box
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the y_coordinate
+  integer :: i
+  at_boundary_t_fn =.false. ! False by default
+  if (index/=1 .and. index/=size(this%y_coordinates)) then
+    do i=1,size(this%y_boundaries)
+      if((abs(this%y_coordinates(index)-this%y_boundaries(i)))<1e-10_dp) at_boundary_t_fn = .true. ! If box is a 'boundary' box then true
+    end do
+  endif  
+end function at_boundary_t_fn
+
+logical function at_boundary_b_fn(this,index)
+  !
+  ! function to check if boundary on bottom side of box
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the y_coordinate
+  integer :: i
+  at_boundary_b_fn =.false. ! False by default
+  if (index/=1 .and. index/=size(this%y_coordinates)) then
+    do i=1,size(this%y_boundaries)
+      if((abs(this%y_coordinates(index-1)-this%y_boundaries(i)))<1e-10_dp) at_boundary_b_fn = .true. ! If box below is a 'boundary' box then true
+    end do
+  endif  
+end function at_boundary_b_fn
+
+logical function at_edge_l_fn(this,index)
+  !
+  ! function to check if at left edge
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the x_coordinate
+  integer :: i
+  at_edge_l_fn =.false. ! False by default
+  if (index==1) at_edge_l_fn = .true. ! If first node then true
+end function at_edge_l_fn
+
+logical function at_edge_r_fn(this,index)
+  !
+  ! function to check if at right edge
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the x_coordinate
+  integer :: i
+  at_edge_r_fn =.false. ! False by default
+  if (index==size(this%x_coordinates)) at_edge_r_fn = .true. ! If last box then true
+end function at_edge_r_fn
+
+logical function at_edge_t_fn(this,index)
+  !
+  ! function to check if at top edge
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the y_coordinate
+  integer :: i
+  at_edge_t_fn =.false. ! False by default
+  if (index==size(this%y_coordinates)) at_edge_t_fn = .true. ! If last box then true
+end function at_edge_t_fn
+
+logical function at_edge_b_fn(this,index)
+  !
+  ! function to check if at bottom edge
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  integer,intent(in) :: index ! index for the y_coordinate
+  integer :: i
+  at_edge_b_fn =.false. ! False by default
+  if (index==1) at_edge_b_fn = .true. ! If first box then true
+end function at_edge_b_fn
+
+integer function r_fn(this,i,j)
+  !
+  ! function to return x value
+  !
+  implicit NONE
+  ! Declare calling arguments
+  class(mesh),intent(in) :: this
+  INTEGER,INTENT(IN) :: i,j
+  
+
+
 
 end module mesh_class
