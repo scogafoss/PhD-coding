@@ -354,8 +354,16 @@ integer function r_fn(this,i,j)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   INTEGER,INTENT(IN) :: i,j
-  
-
-
-
+  INTEGER :: k,temp
+  temp=findloc(sign(1, this%x_boundaries-i), 1, back=.true.)
+  do k=1,size(this%number_regions_x()*this%number_regions_y())
+    if(temp==0) then
+      r_fn=1
+    else
+      r_fn=temp
+    endif
+    temp=findloc(sign(1, this%y_boundaries-j), 1, back=.true.)
+    if(temp/=0) r_fn = r_fn + (temp*this%number_regions_x()-1)
+  end do
+end function r_fn
 end module mesh_class
