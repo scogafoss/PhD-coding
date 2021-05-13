@@ -92,8 +92,19 @@ END TYPE populate_compressed_2d
     absorption = regions(1)%get_removal(group)
     D = 1 / (3 * (regions(1)%get_absorption(group)+(regions(1)%get_scatter(group))))
     region_iterator = 1
-    DO i = 1 , c_matrix%get_rows()
-      ! Check if at a boundary, where average values are needed. No need for last value of i.
+    do j=1,in_mesh%get_y_size() ! loop all y boxes
+      do i=1,in_mesh%get_x_size() ! loop all x boxes
+        al(i,j)=(-2*deltay(j))/((deltax(i-1)/D(i-1,j))+(deltax(i)/D(i,j)))
+        ! Check if at a boundary, where average values are needed. No need for last value of i.
+        if (in_mesh%at_edge_l(i)) ! Check if at left edge
+        if (in_mesh%at_edge_r(i)) ! Check if at right edge
+        if (in_mesh%at_boundary_l(i)) ! Check if at left boundary
+        if (in_mesh%at_boundary_r(i)) ! Check if at right boundary
+        if (in_mesh%at_edge_b(j)) ! Check if at bottom edge
+        if (in_mesh%at_edge_t(j)) ! Check if at top edge
+        if (in_mesh%at_boundary_b(j)) ! Check if at bottom boundary
+        if (in_mesh%at_boundary_t(j)) ! Check if at top boundary
+        if ()
       if (i == boundary_tracker(region_iterator) .and. region_iterator < size(regions)) then
         ! D = ((1/(3*absorption))*delta+(1/(3*(regions(region_iterator+1)%get_absorption()))*(regions(region_iterator+1)%get_length()&
         ! /(regions(region_iterator+1)%get_steps()))))/(delta+(regions(region_iterator+1)%get_length()&
@@ -180,5 +191,20 @@ END TYPE populate_compressed_2d
         real(dp),INTENT(IN) :: variable2
         weighted_average=((variable1*weight1)+(variable2*weight2))/(weight1+weight2)
     end function weighted_average
+
+    real(dp) function get_al(i,j,in_mesh,regions)
+        !
+        ! function to calculate weighted average
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: i,j
+        type(mesh),INTENT(IN) :: in_mesh
+        type(region_2d),DIMENSION(:),INTENT(IN) :: regions
+        if(.not.in_mesh%at_edge_l()) then
+          get_al=(-2*deltay(j))/((deltax(i-1)/D(i-1,j))+(deltax(i)/D(i,j)))
+        elseif(regions%get_left_boundary()=='r') ! reflective b.c.
+          get_al=0 ! Because Jout = 0
+    end funciton get_al
+
 
   END MODULE populate_compressed_class
