@@ -68,116 +68,30 @@ END TYPE populate_compressed_2d
     endif
   end subroutine allocate_matrix_sub
 
-  subroutine discretisation_sub(this,c_matrix,regions,boundary_tracker,group,in_mesh)
+  subroutine discretisation_sub(this,c_matrix,regions,group,in_mesh)
     !
     ! Subroutine to fill elements of compressed matrix using discretisation
     !
     implicit none
     ! Declare calling arguments
-    class(populate_compressed), intent(INOUT) :: this ! Nuclear_matrix object
+    class(populate_compressed_2d), intent(INOUT) :: this ! Nuclear_matrix object
     type(compressed_matrix),INTENT(INOUT) :: c_matrix
     type(mesh),intent(in) :: in_mesh ! Mesh to track the points
     type(region_1d),INTENT(IN), DIMENSION(:) :: regions
-    INTEGER,INTENT(IN), DIMENSION(:) :: boundary_tracker
-    INTEGER :: region_iterator
-    INTEGER :: i
-    real(dp) :: delta
-    real(dp) :: absorption
-    real(dp) :: D
-    real(dp) :: temp
-    real(dp) :: temp2
+    INTEGER :: i,j
+    real(dp) :: al,ar,at,ab,ac
     integer,INTENT(IN) :: group
     ! Set the variables for the first region.
-    delta = regions(1)%get_delta()
-    absorption = regions(1)%get_removal(group)
-    D = 1 / (3 * (regions(1)%get_absorption(group)+(regions(1)%get_scatter(group))))
-    region_iterator = 1
     do j=1,in_mesh%get_y_size() ! loop all y boxes
       do i=1,in_mesh%get_x_size() ! loop all x boxes
-        al(i,j)=(-2*deltay(j))/((deltax(i-1)/D(i-1,j))+(deltax(i)/D(i,j)))
-        ! Check if at a boundary, where average values are needed. No need for last value of i.
-        if (in_mesh%at_edge_l(i)) ! Check if at left edge
-        if (in_mesh%at_edge_r(i)) ! Check if at right edge
-        if (in_mesh%at_boundary_l(i)) ! Check if at left boundary
-        if (in_mesh%at_boundary_r(i)) ! Check if at right boundary
-        if (in_mesh%at_edge_b(j)) ! Check if at bottom edge
-        if (in_mesh%at_edge_t(j)) ! Check if at top edge
-        if (in_mesh%at_boundary_b(j)) ! Check if at bottom boundary
-        if (in_mesh%at_boundary_t(j)) ! Check if at top boundary
-        if ()
-      if (i == boundary_tracker(region_iterator) .and. region_iterator < size(regions)) then
-        ! D = ((1/(3*absorption))*delta+(1/(3*(regions(region_iterator+1)%get_absorption()))*(regions(region_iterator+1)%get_length()&
-        ! /(regions(region_iterator+1)%get_steps()))))/(delta+(regions(region_iterator+1)%get_length()&
-        ! /(regions(region_iterator+1)%get_steps())))
-        absorption = (((absorption*delta)+(regions(region_iterator+1)%get_removal(group)*regions(region_iterator+1)%get_delta())))/&
-        (delta+(regions(region_iterator+1)%get_delta()))
-        delta = (delta + (regions(region_iterator+1)%get_delta()))/2
-        ! region_iterator=region_iterator+1
-      end if
-      ! Check if just after a boudary, where values are updated to new region
-      if (i==boundary_tracker(region_iterator)+1 .and. region_iterator < size(regions)) then
-        region_iterator=region_iterator+1
-        delta = regions(region_iterator)%get_delta()
-        absorption = regions(region_iterator)%get_removal(group)
-        D = 1 / (3 * (regions(region_iterator)%get_absorption(group)+(regions(region_iterator)%get_scatter(group))))
-      end if
-    !
-    !------------------------------------------------------------------------------
-    !
-      ! At each boundary need more terms
-      if(i == boundary_tracker(region_iterator) .and. i /= c_matrix%get_rows()) then
-        ! ai,i-1
-        temp = -((1/(3*(regions(region_iterator)%get_absorption(group)+&
-        (regions(region_iterator)%get_scatter(group)))))/(regions(region_iterator)%get_delta()))
-        call c_matrix%add_element(temp,i,i-1)
-        ! ai,i
-        temp = absorption*delta + ((1/(3*(regions(region_iterator)%get_absorption(group)+&
-        (regions(region_iterator)%get_scatter(group)))))/(regions(region_iterator)%get_delta()))+&
-        ((1/(3*(regions(region_iterator+1)%get_absorption(group)+&
-        (regions(region_iterator+1)%get_scatter(group)))))/(regions(region_iterator+1)%get_delta()))
-        call c_matrix%add_element(temp,i,i)
-        ! ai,i+1
-        temp = -((1/(3*(regions(region_iterator+1)%get_absorption(group)+&
-        (regions(region_iterator+1)%get_scatter(group)))))/(regions(region_iterator+1)%get_delta()))
-        call c_matrix%add_element(temp,i,i+1)
-    !
-    !------------------------------------------------------------------------------
-    !
-      ! Elsewhere need to correct for geometry and position
-      ELSE
-        ! ai,i-1
-        if (i==1) then
-          temp= -(1 / (3 * (regions(size(regions))%get_absorption(group)+(regions(size(regions))%get_scatter(group)))))/&
-          (regions(size(regions))%get_delta()) ! -D_last/delta_last
-          call c_matrix%add_element(temp,i,c_matrix%get_columns())
-          call c_matrix%add_element(temp,c_matrix%get_rows(),i) ! Both corners are equal
-          temp2= -(1 / (3 * (regions(1)%get_absorption(group)+(regions(1)%get_scatter(group)))))/&
-          (regions(size(regions))%get_delta()) !-D_first/delta_first
-          call c_matrix%add_element(temp2,i,i+1)
-          temp = (-temp)+(-temp2)+(((regions(size(regions))%get_delta()+regions(1)%get_delta())/2)*&
-          weighted_average(regions(size(regions))%get_delta(),regions(1)%get_delta(),regions(size(regions))%get_removal(group),&
-          regions(1)%get_removal(group)))
-          call c_matrix%add_element(temp,i,i)
-
-        else if (i==c_matrix%get_rows()) then
-          temp = -(1 / (3 * (regions(size(regions))%get_absorption(group)+(regions(size(regions))%get_scatter(group)))))/&
-          (regions(size(regions))%get_delta())
-          call c_matrix%add_element(temp,i,i-1)
-          temp = (-2*temp)+(regions(size(regions))%get_delta()*regions(size(regions))%get_removal(group))
-          call c_matrix%add_element(temp,i,i)
-
-        else
-          temp = -(D/(delta))
-          ! ai,i-1
-          call c_matrix%add_element(temp,i,i-1)
-          ! ai,i+1
-          call c_matrix%add_element(temp,i,i+1)
-          ! ai,i
-          temp = (absorption*delta) + (2*D/(delta))
-          call c_matrix%add_element(temp,i,i)
-        end if
-      END IF
-    END DO
+        al=get_al(i,j,in_mesh,regions,group)
+        ar=get_ar(i,j,in_mesh,regions,group)
+        at=get_at(i,j,in_mesh,regions,group)
+        ab=get_ab(i,j,in_mesh,regions,group)
+        ac=get_ac(i,j,in_mesh,regions,group,al,ar,at,ab)
+        call populate_elements(c_matrix,in_mesh,al,ar,at,ab,ac)
+      enddo
+    enddo
   end subroutine discretisation_sub
 
   real(dp) function weighted_average(weight1,weight2,variable1,variable2)
@@ -192,19 +106,138 @@ END TYPE populate_compressed_2d
         weighted_average=((variable1*weight1)+(variable2*weight2))/(weight1+weight2)
     end function weighted_average
 
-    real(dp) function get_al(i,j,in_mesh,regions)
+    real(dp) function get_al(i,j,in_mesh,regions,group)
         !
-        ! function to calculate weighted average
+        ! function to calculate matrix element al(i,j)
         !
         IMPLICIT NONE
-        integer,INTENT(IN) :: i,j
+        integer,INTENT(IN) :: i,j,group
         type(mesh),INTENT(IN) :: in_mesh
         type(region_2d),DIMENSION(:),INTENT(IN) :: regions
+        real(dp) :: deltay,deltax1,deltax2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        !
+        ! Define variables used in calculation
+        !
+        deltay = regions(in_mesh%r(i,j))%get_delta(2)
+        deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
+        deltax2 = regions(in_mesh%r(i-1,j))%get_delta(1)
+        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d2 = regions(in_mesh%r(i-1,j))%get_d(group)
+        !
+        ! Perform calculation
+        !
         if(.not.in_mesh%at_edge_l()) then
-          get_al=(-2*deltay(j))/((deltax(i-1)/D(i-1,j))+(deltax(i)/D(i,j)))
-        elseif(regions%get_left_boundary()=='r') ! reflective b.c.
+          get_al=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
+        ! If at edge will have logic later in populate_elements to ignore it. 
+        elseif(regions(1)%get_left_boundary()=='r') ! reflective b.c.
           get_al=0 ! Because Jout = 0
-    end funciton get_al
+        endif
+      end function get_al
 
+      real(dp) function get_ar(i,j,in_mesh,regions,group)
+        !
+        ! function to calculate matrix element ar(i,j)
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: i,j,group
+        type(mesh),INTENT(IN) :: in_mesh
+        type(region_2d),DIMENSION(:),INTENT(IN) :: regions
+        real(dp) :: deltay,deltax1,deltax2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        !
+        ! Define variables used in calculation
+        !
+        deltay = regions(in_mesh%r(i,j))%get_delta(2)
+        deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
+        deltax2 = regions(in_mesh%r(i+1,j))%get_delta(1)
+        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d2 = regions(in_mesh%r(i+1,j))%get_d(group)
+        !
+        ! Perform calculation
+        !
+        if(.not.in_mesh%at_edge_l()) then
+          get_ar=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
+        ! If at edge will have logic later in populate_elements to ignore it. 
+        elseif(regions(1)%get_right_boundary()=='r') ! reflective b.c.
+          get_ar=0 ! Because Jout = 0
+        endif
+      end function get_ar
 
-  END MODULE populate_compressed_class
+      real(dp) function get_ab(i,j,in_mesh,regions,group)
+        !
+        ! function to calculate matrix element ab(i,j)
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: i,j,group
+        type(mesh),INTENT(IN) :: in_mesh
+        type(region_2d),DIMENSION(:),INTENT(IN) :: regions
+        real(dp) :: deltax,deltay1,deltay2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        !
+        ! Define variables used in calculation
+        !
+        deltax = regions(in_mesh%r(i,j))%get_delta(1)
+        deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
+        deltay2 = regions(in_mesh%r(i-1,j))%get_delta(2)
+        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d2 = regions(in_mesh%r(i-1,j))%get_d(group)
+        !
+        ! Perform calculation
+        !
+        if(.not.in_mesh%at_edge_l()) then
+          get_ab=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
+        ! If at edge will have logic later in populate_elements to ignore it. 
+        elseif(regions(1)%get_bottom_boundary()=='r') ! reflective b.c.
+          get_ab=0 ! Because Jout = 0
+        endif
+      end function get_ab
+
+      real(dp) function get_at(i,j,in_mesh,regions,group)
+        !
+        ! function to calculate matrix element at(i,j)
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: i,j,group
+        type(mesh),INTENT(IN) :: in_mesh
+        type(region_2d),DIMENSION(:),INTENT(IN) :: regions
+        real(dp) :: deltax,deltay1,deltay2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        !
+        ! Define variables used in calculation
+        !
+        deltax = regions(in_mesh%r(i,j))%get_delta(1)
+        deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
+        deltay2 = regions(in_mesh%r(i+1,j))%get_delta(2)
+        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d2 = regions(in_mesh%r(i+1,j))%get_d(group)
+        !
+        ! Perform calculation
+        !
+        if(.not.in_mesh%at_edge_l()) then
+          get_ab=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
+        ! If at edge will have logic later in populate_elements to ignore it. 
+        elseif(regions(1)%get_bottom_boundary()=='r') ! reflective b.c.
+          get_ab=0 ! Because Jout = 0
+        endif
+      end function get_at
+
+      real(dp) function get_ac(i,j,in_mesh,regions,group,al,ar,at,ab)
+        !
+        ! function to calculate matrix element ac(i,j)
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: i,j,group
+        type(mesh),INTENT(IN) :: in_mesh
+        type(region_2d),DIMENSION(:),INTENT(IN) :: regions
+        real(dp),INTENT(IN) :: al,ar,at,ab
+        real(dp) :: deltay,deltax,removal
+        !
+        ! Define variables used in calculation
+        !
+        deltay = regions(in_mesh%r(i,j))%get_delta(2)
+        deltax = regions(in_mesh%r(i,j))%get_delta(1)
+        removal = regions(in_mesh%r(i,j))%get_removal(group)
+        !
+        ! Perform calculation
+        !
+        get_ac = (removal*deltax*deltay) - (al + ar + ab + at)
+      end function get_ac
+
+  END MODULE populate_compressed_class_2d
