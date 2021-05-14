@@ -346,24 +346,34 @@ logical function at_edge_b_fn(this,index)
   if (index==1) at_edge_b_fn = .true. ! If first box then true
 end function at_edge_b_fn
 
-integer function r_fn(this,i,j)
+integer function r_fn(this,indexx,indexy)
   !
-  ! function to return x value
+  ! function to search a list-index for the last zero or negative element. If not present returns the first element.
   !
   implicit NONE
   ! Declare calling arguments
   class(mesh),intent(in) :: this
-  INTEGER,INTENT(IN) :: i,j
-  INTEGER :: k,temp
-  temp=findloc(sign(1, this%x_boundaries-i), 1, back=.true.)
-  do k=1,size(this%number_regions_x()*this%number_regions_y())
-    if(temp==0) then
-      r_fn=1
-    else
-      r_fn=temp
+  INTEGER,INTENT(IN) :: indexx,indexy
+  INTEGER :: i
+  r_fn=1
+  do i =size(this%x_boundaries),1,-1
+    if(this%x_boundaries(i)-indexx==0) then
+      r_fn = i ! If the boudnary - index = 0 implies at edge of a region
+      exit
+    elseif(this%x_boundaries(i)-indexx<0) then
+      r_fn = i+1 ! If the boundary - index is negative this implies index is beyond this region.1
+      exit
     endif
-    temp=findloc(sign(1, this%y_boundaries-j), 1, back=.true.)
-    if(temp/=0) r_fn = r_fn + (temp*this%number_regions_x()-1)
+  end do
+  do i =size(this%y_boundaries),1,-1
+    if(this%y_boundaries(i)-indexy==0) then
+      r_fn = r_fn + ((i-1)*this%number_regions_x()) ! If the boudnary - index = 0 implies at edge of a region but still in it
+      exit
+    elseif(this%x_boundaries(i)-indexx<0) then
+      r_fn = r_fn + ((i)*this%number_regions_x()) ! If the boudnary - index = 0 implies at edge of a region but still in it
+      exit
+    endif
   end do
 end function r_fn
+
 end module mesh_class
