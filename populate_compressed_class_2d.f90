@@ -89,7 +89,7 @@ END TYPE populate_compressed_2d
         at=get_at(i,j,in_mesh,regions,group)
         ab=get_ab(i,j,in_mesh,regions,group)
         ac=get_ac(i,j,in_mesh,regions,group,al,ar,at,ab)
-        call populate_elements(c_matrix,in_mesh,al,ar,at,ab,ac)
+        call populate_elements(c_matrix,in_mesh,al,ar,at,ab,ac,i,j)
       enddo
     enddo
   end subroutine discretisation_sub
@@ -239,5 +239,30 @@ END TYPE populate_compressed_2d
         !
         get_ac = (removal*deltax*deltay) - (al + ar + ab + at)
       end function get_ac
+
+      subroutine populate_elements_sub(c_matrix,in_mesh,al,ar,at,ab,ac,i,j)
+        !
+        ! Subroutine to fill elements of compressed matrix
+        !
+        implicit none
+        ! Declare calling arguments
+        type(compressed_matrix),INTENT(IN) :: c_matrix
+        type(mesh),intent(in) :: in_mesh ! Mesh to track the points
+        real(dp),INTENT(IN) :: al,ar,at,ab,ac
+        INTEGER,INTENT(IN) :: i,j
+        integer :: nodei ! Stores the row and column node in matrix
+        !
+        ! First populate the central box node
+        !
+        nodei = i + ((j-1) * (in_mesh%get_x_size()))
+        call c_matrix%add_element(ac,nodei,nodei)
+        !
+        ! Now check for surrounding boxes, if there are any missing , that matrix element will not be added.
+        !
+        if (.not.in_mesh%at_edge_l()) call c_matrix%add_element(al,nodei,nodei-1) ! Left node will always be just to the left of central
+        if (.not.in_mesh%at_edge_r()) call c_matrix%add_element(ar,nodei,nodei+1) ! Right node will always be just to the right of central
+        if (.not.in_mesh%at_edge_b()) call c_matrix%add_element(ab,nodei,nodei-in_mesh%get_x_size()) ! Bottom node will always be the row below, so will be central node-(number of x boxes)
+        if (.not.in_mesh%at_edge_t()) call c_matrix%add_element(at,nodei,nodei+in_mesh%get_x_size()) ! Top node will always be the row above, so will be central node+(number of x boxes)
+      end subroutine populate_elements_sub
 
   END MODULE populate_compressed_class_2d
