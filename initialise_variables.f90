@@ -53,7 +53,6 @@ contains
     	if (status /= 0) exit ! exit if end of file (or fail).
       if (file_line == 'Regions') then
         read(11,*,iostat=status) file_line, total_regions
-        allocate(regions(1:total_regions))
         allocate(boundary_tracker(1:total_regions))
       else if (file_line == 'Materials') then
         read(11,*,iostat=status) file_line, total_materials
@@ -64,16 +63,18 @@ contains
       else if(index(file_line,'Dimension:')/=0) then
         backspace(unit=11) ! Go back to the start of the line
         read(11,*,iostat=status) file_line, dimension
+        if(dimension==1) allocate(regions(1:total_regions))
+        if(dimension==2) allocate(regions2(1:total_regions))
       else if (file_line == 'Region Number, Linex, Liney, Linez, Material ID') then
         do i = 1,total_regions! Loop until no more regions
-          if (dimension==1) then
+          if (allocated(regions)) then
             read(11,*,iostat=status) file_line, lid, mid
             call regions(i)%set_line_id(lid)
             call regions(i)%set_material_id(mid)
             allocate(lines(1:total_regions))
             ! Can immediately set the line ID
             call lines(i)%set_id(lid)
-          elseif(dimension==2) THEN
+          elseif(allocated(regions2)) THEN
             read(11,*,iostat=status) file_line, lid,lid2, mid
             call regions2(i)%set_line_id(lid,1)
             call regions2(i)%set_line_id(lid2,2)
