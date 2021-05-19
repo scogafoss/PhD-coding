@@ -4,24 +4,6 @@ CC=gcc
 LD=gfortran
 
 #Set the objects
-OBJS=			    	   precision_set.o \
-									 read_gem_file.o \
-									 maths_class.o \
-									 error_class.o \
-									 line_class.o \
-									 material_class.o \
-									 region_class.o \
-									 region_class_1d.o \
-									 timer_class.o \
-									 matrix_class.o \
-									 populate_class.o \
-									 compressed_matrix_class.o \
-									 tridiagonal_matrix_class.o \
-									 populate_tridiagonal_class.o \
-									 populate_compressed_class.o \
-									 initialise_variables.o \
-									 solver_class.o \
-				    test_periodic.o
 # OBJS=			    	   precision_set.o \
 # 									 read_gem_file.o \
 # 									 maths_class.o \
@@ -39,33 +21,28 @@ OBJS=			    	   precision_set.o \
 # 									 populate_compressed_class.o \
 # 									 initialise_variables.o \
 # 									 solver_class.o \
-# 				    test.o
-# OBJS=			    	   precision_set.o \
-# 									 line_class.o \
-# 									 material_class.o \
-# 									 region_class.o \
-# 									 region_class_1d.o \
-# 									 timer_class.o \
-# 									 read_gem_file.o \
-# 									 error_class.o \
-# 									 maths_class.o \
-# 									 matrix_class.o \
-# 									 nuclear_matrix_class.o \
-# 									 initialise_variables.o \
-# 				    test_regions.o
-# OBJS=							 precision_set.o \
-# 									 line_class.o \
-# 									 material_class.o \
-# 									 region_class.o \
-# 									 region_class_1d.o \
-# 									 timer_class.o \
-# 									 read_gem_file.o \
-# 									 error_class.o \
-# 									 maths_class.o \
-# 									 matrix_class.o \
-# 									 nuclear_matrix_class.o \
-# 									 initialise_variables.o \
-# 				    test_classes.o
+# 				    test_periodic.o
+OBJS=			    	   precision_set.o \
+									 read_gem_file.o \
+									 maths_class.o \
+									 error_class.o \
+									 line_class.o \
+									 mesh_class.o \
+									 material_class.o \
+									 region_class.o \
+									 region_class_1d.o \
+									 region_class_2d.o \
+									 timer_class.o \
+									 matrix_class.o \
+									 populate_class.o \
+									 compressed_matrix_class.o \
+									 tridiagonal_matrix_class.o \
+									 populate_tridiagonal_class.o \
+									 populate_compressed_class.o \
+									 populate_compressed_class_2d.o \
+									 initialise_variables.o \
+									 solver_class.o \
+				    test_2d.o
 
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
