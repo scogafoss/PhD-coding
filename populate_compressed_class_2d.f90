@@ -114,7 +114,7 @@ END TYPE populate_compressed_2d
         integer,INTENT(IN) :: i,j,group
         type(mesh),INTENT(IN) :: in_mesh
         type(region_2d),DIMENSION(:),INTENT(IN) :: regions
-        real(dp) :: deltay,deltax1,deltax2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        real(dp) :: deltay,deltax1,deltax2,d1,d2,alpha ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
         !
         ! Define variables used in calculation
         !
@@ -130,7 +130,16 @@ END TYPE populate_compressed_2d
           get_al=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_left_boundary()=='r') ! reflective b.c.
-          get_al=0 ! Because Jout = 0
+          get_al=0 ! Because Jnet = 0
+        elseif(regions(1)%get_left_boundary()=='v') ! vacuum b.c.
+          get_al=deltay/2 ! Because Jin = 0, dphi/dx=phi/2D
+        elseif(regions(1)%get_left_boundary()=='z') ! zero flux b.c.
+          get_al=1E30_dp ! Very large?
+        elseif(regions(1)%get_left_boundary()=='a') ! albedo b.c.
+          alpha = regions(1)%get_left_albedo()
+          get_al= ((1-alpha)/(1+alpha))*deltay/2
+        else
+          stop 'Unrecognised left boundary condition'
         endif
       end function get_al
 
@@ -142,7 +151,7 @@ END TYPE populate_compressed_2d
         integer,INTENT(IN) :: i,j,group
         type(mesh),INTENT(IN) :: in_mesh
         type(region_2d),DIMENSION(:),INTENT(IN) :: regions
-        real(dp) :: deltay,deltax1,deltax2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        real(dp) :: deltay,deltax1,deltax2,d1,d2,alpha ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
         !
         ! Define variables used in calculation
         !
@@ -159,6 +168,15 @@ END TYPE populate_compressed_2d
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_right_boundary()=='r') ! reflective b.c.
           get_ar=0 ! Because Jout = 0
+        elseif(regions(1)%get_right_boundary()=='v') ! vacuum b.c.
+          get_ar=deltay/2 ! Because Jin = 0, dphi/dx=-phi/2D
+        elseif(regions(1)%get_right_boundary()=='z') ! zero flux b.c.
+          get_ar=1E30_dp ! Very large?
+        elseif(regions(1)%get_right_boundary()=='a') ! albedo b.c.
+          alpha = regions(1)%get_right_albedo()
+          get_ar= ((1-alpha)/(1+alpha))*deltay/2
+        else
+          stop 'Unrecognised right boundary condition'
         endif
       end function get_ar
 
@@ -170,7 +188,7 @@ END TYPE populate_compressed_2d
         integer,INTENT(IN) :: i,j,group
         type(mesh),INTENT(IN) :: in_mesh
         type(region_2d),DIMENSION(:),INTENT(IN) :: regions
-        real(dp) :: deltax,deltay1,deltay2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        real(dp) :: deltax,deltay1,deltay2,d1,d2,alpha ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
         !
         ! Define variables used in calculation
         !
@@ -187,6 +205,15 @@ END TYPE populate_compressed_2d
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_bottom_boundary()=='r') ! reflective b.c.
           get_ab=0 ! Because Jout = 0
+        elseif(regions(1)%get_bottom_boundary()=='v') ! vacuum b.c.
+          get_ab=deltax/2 ! Because Jin = 0, dphi/dy=phi/2D
+        elseif(regions(1)%get_bottom_boundary()=='z') ! zero flux b.c.
+          get_ab=1E30_dp ! Very large?
+        elseif(regions(1)%get_bottom_boundary()=='a') ! albedo b.c.
+          alpha = regions(1)%get_bottom_albedo()
+          get_ab= ((1-alpha)/(1+alpha))*deltax/2
+        else
+          stop 'Unrecognised bottom boundary condition'
         endif
       end function get_ab
 
@@ -198,7 +225,7 @@ END TYPE populate_compressed_2d
         integer,INTENT(IN) :: i,j,group
         type(mesh),INTENT(IN) :: in_mesh
         type(region_2d),DIMENSION(:),INTENT(IN) :: regions
-        real(dp) :: deltax,deltay1,deltay2,d1,d2 ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
+        real(dp) :: deltax,deltay1,deltay2,d1,d2,alpha ! the 1 implies the same i and j and input, the 2 is the i or j shifted by +-1.
         !
         ! Define variables used in calculation
         !
@@ -213,8 +240,17 @@ END TYPE populate_compressed_2d
         if(.not.in_mesh%at_edge_l()) then
           get_ab=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
-        elseif(regions(1)%get_bottom_boundary()=='r') ! reflective b.c.
-          get_ab=0 ! Because Jout = 0
+        elseif(regions(1)%get_top_boundary()=='r') ! reflective b.c.
+          get_at=0 ! Because Jout = 0
+        elseif(regions(1)%get_top_boundary()=='v') ! vacuum b.c.
+          get_at=deltax/2 ! Because Jin = 0, dphi/dy=-phi/2D
+        elseif(regions(1)%get_top_boundary()=='z') ! zero flux b.c.
+          get_at=1E30_dp ! Very large?
+        elseif(regions(1)%get_top_boundary()=='a') ! albedo b.c.
+          alpha = regions(1)%get_top_albedo()
+          get_at= ((1-alpha)/(1+alpha))*deltax/2
+        else
+          stop 'Unrecognised top boundary condition'
         endif
       end function get_at
 
