@@ -21,7 +21,7 @@ MODULE tridiagonal_matrix_class
 
 IMPLICIT NONE
 ! Type definition
-TYPE,PUBLIC,extends(matrix) :: tridiagonal_matrix ! This will be the name we instantiate
+TYPE,PUBLIC,extends(matrix) :: tridiagonal_matrix! This will be the name we instantiate
 ! Instance variables.
 PRIVATE
 real(dp), allocatable, dimension(:) :: a ! Bottom (leftmost) diagonal in matrix |b1 c1 0  0 |

@@ -37,6 +37,8 @@ MODULE region_class_2d
   procedure,public :: get_top_boundary => get_top_boundary_fn ! Returns the top boundary condition
   procedure,public :: get_bottom_boundary => get_bottom_boundary_fn ! Returns the bottom boundary condition
   procedure,public :: get_d => get_d_fn ! Function to return diffusion coefficient
+  procedure,public :: get_bottom_albedo => get_bottom_albedo_fn ! Returns albedo on bottom edge
+  procedure,public :: get_top_albedo => get_top_albedo_fn ! Top edge albedo
   END TYPE region_2d
   ! Restrict access to the actual procedure names
   private :: set_line_id_sub
@@ -50,6 +52,8 @@ MODULE region_class_2d
   private :: set_steps_sub
   private :: get_top_boundary_fn
   private :: get_bottom_boundary_fn
+  private :: get_bottom_albedo_fn
+  private :: get_top_albedo_fn
   ! Now add methods
   CONTAINS
   
@@ -257,6 +261,28 @@ MODULE region_class_2d
       if(.not.associated(this%materials)) stop 'Error no material associated with region'
       get_d_fn = 1/(3*(this%get_absorption(group)+this%get_scatter(group)))
     END FUNCTION get_d_fn
+
+    real(dp) FUNCTION get_bottom_albedo_fn(this)
+      !
+      ! Function to get bottom albedo of region
+      !
+      IMPLICIT NONE
+      ! Declare calling arguments
+      CLASS(region_2d),INTENT(IN) :: this ! region object
+      if(.not.associated(this%materials)) stop 'Error no material associated with region'
+      get_bottom_albedo_fn = this%materials%get_bottom_albedo()
+    END FUNCTION get_bottom_albedo_fn
+
+    real(dp) FUNCTION get_top_albedo_fn(this)
+      !
+      ! Function to get bottom albedo of region
+      !
+      IMPLICIT NONE
+      ! Declare calling arguments
+      CLASS(region_2d),INTENT(IN) :: this ! region object
+      if(.not.associated(this%materials)) stop 'Error no material associated with region'
+      get_top_albedo_fn = this%materials%get_top_albedo()
+    END FUNCTION get_top_albedo_fn
     
   end module region_class_2d
   

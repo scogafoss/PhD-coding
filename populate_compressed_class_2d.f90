@@ -46,7 +46,7 @@ END TYPE populate_compressed_2d
     !
     ! Allocate the class array sizes.
     !
-    call this%allocate_matrix(in_matrix,in_mesh)
+    call allocate_matrix(in_matrix,in_mesh)
     !
     ! Perform the actual discretisation
     !
@@ -77,7 +77,7 @@ END TYPE populate_compressed_2d
     class(populate_compressed_2d), intent(INOUT) :: this ! Nuclear_matrix object
     type(compressed_matrix),INTENT(INOUT) :: c_matrix
     type(mesh),intent(in) :: in_mesh ! Mesh to track the points
-    type(region_1d),INTENT(IN), DIMENSION(:) :: regions
+    type(region_2d),INTENT(IN), DIMENSION(:) :: regions
     INTEGER :: i,j
     real(dp) :: al,ar,at,ab,ac
     integer,INTENT(IN) :: group
@@ -121,21 +121,21 @@ END TYPE populate_compressed_2d
         deltay = regions(in_mesh%r(i,j))%get_delta(2)
         deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
         deltax2 = regions(in_mesh%r(i-1,j))%get_delta(1)
-        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d1 = regions(in_mesh%r(i,j))%get_d(group)
         d2 = regions(in_mesh%r(i-1,j))%get_d(group)
         !
         ! Perform calculation
         !
-        if(.not.in_mesh%at_edge_l()) then
+        if(.not.in_mesh%at_edge_l(i)) then
           get_al=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
-        elseif(regions(1)%get_left_boundary()=='r') ! reflective b.c.
+        elseif(regions(1)%get_left_boundary()=='r') then ! reflective b.c.
           get_al=0 ! Because Jnet = 0
-        elseif(regions(1)%get_left_boundary()=='v') ! vacuum b.c.
+        elseif(regions(1)%get_left_boundary()=='v') then! vacuum b.c.
           get_al=deltay/2 ! Because Jin = 0, dphi/dx=phi/2D
-        elseif(regions(1)%get_left_boundary()=='z') ! zero flux b.c.
+        elseif(regions(1)%get_left_boundary()=='z') then! zero flux b.c.
           get_al=1E30_dp ! Very large?
-        elseif(regions(1)%get_left_boundary()=='a') ! albedo b.c.
+        elseif(regions(1)%get_left_boundary()=='a') then! albedo b.c.
           alpha = regions(1)%get_left_albedo()
           get_al= ((1-alpha)/(1+alpha))*deltay/2
         else
@@ -158,21 +158,21 @@ END TYPE populate_compressed_2d
         deltay = regions(in_mesh%r(i,j))%get_delta(2)
         deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
         deltax2 = regions(in_mesh%r(i+1,j))%get_delta(1)
-        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d1 = regions(in_mesh%r(i,j))%get_d(group)
         d2 = regions(in_mesh%r(i+1,j))%get_d(group)
         !
         ! Perform calculation
         !
-        if(.not.in_mesh%at_edge_l()) then
+        if(.not.in_mesh%at_edge_r(i)) then
           get_ar=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
-        elseif(regions(1)%get_right_boundary()=='r') ! reflective b.c.
+        elseif(regions(1)%get_right_boundary()=='r') then ! reflective b.c.
           get_ar=0 ! Because Jout = 0
-        elseif(regions(1)%get_right_boundary()=='v') ! vacuum b.c.
+        elseif(regions(1)%get_right_boundary()=='v') then ! vacuum b.c.
           get_ar=deltay/2 ! Because Jin = 0, dphi/dx=-phi/2D
-        elseif(regions(1)%get_right_boundary()=='z') ! zero flux b.c.
+        elseif(regions(1)%get_right_boundary()=='z') then ! zero flux b.c.
           get_ar=1E30_dp ! Very large?
-        elseif(regions(1)%get_right_boundary()=='a') ! albedo b.c.
+        elseif(regions(1)%get_right_boundary()=='a') then ! albedo b.c.
           alpha = regions(1)%get_right_albedo()
           get_ar= ((1-alpha)/(1+alpha))*deltay/2
         else
@@ -195,21 +195,21 @@ END TYPE populate_compressed_2d
         deltax = regions(in_mesh%r(i,j))%get_delta(1)
         deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
         deltay2 = regions(in_mesh%r(i-1,j))%get_delta(2)
-        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d1 = regions(in_mesh%r(i,j))%get_d(group)
         d2 = regions(in_mesh%r(i-1,j))%get_d(group)
         !
         ! Perform calculation
         !
-        if(.not.in_mesh%at_edge_l()) then
+        if(.not.in_mesh%at_edge_b(j)) then
           get_ab=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
-        elseif(regions(1)%get_bottom_boundary()=='r') ! reflective b.c.
+        elseif(regions(1)%get_bottom_boundary()=='r') then ! reflective b.c.
           get_ab=0 ! Because Jout = 0
-        elseif(regions(1)%get_bottom_boundary()=='v') ! vacuum b.c.
+        elseif(regions(1)%get_bottom_boundary()=='v') then ! vacuum b.c.
           get_ab=deltax/2 ! Because Jin = 0, dphi/dy=phi/2D
-        elseif(regions(1)%get_bottom_boundary()=='z') ! zero flux b.c.
+        elseif(regions(1)%get_bottom_boundary()=='z') then ! zero flux b.c.
           get_ab=1E30_dp ! Very large?
-        elseif(regions(1)%get_bottom_boundary()=='a') ! albedo b.c.
+        elseif(regions(1)%get_bottom_boundary()=='a') then ! albedo b.c.
           alpha = regions(1)%get_bottom_albedo()
           get_ab= ((1-alpha)/(1+alpha))*deltax/2
         else
@@ -232,21 +232,21 @@ END TYPE populate_compressed_2d
         deltax = regions(in_mesh%r(i,j))%get_delta(1)
         deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
         deltay2 = regions(in_mesh%r(i+1,j))%get_delta(2)
-        d1 = regions(in_mest%r(i,j))%get_d(group)
+        d1 = regions(in_mesh%r(i,j))%get_d(group)
         d2 = regions(in_mesh%r(i+1,j))%get_d(group)
         !
         ! Perform calculation
         !
-        if(.not.in_mesh%at_edge_l()) then
-          get_ab=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
+        if(.not.in_mesh%at_edge_t(j)) then
+          get_at=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
-        elseif(regions(1)%get_top_boundary()=='r') ! reflective b.c.
+        elseif(regions(1)%get_top_boundary()=='r') then ! reflective b.c.
           get_at=0 ! Because Jout = 0
-        elseif(regions(1)%get_top_boundary()=='v') ! vacuum b.c.
+        elseif(regions(1)%get_top_boundary()=='v') then ! vacuum b.c.
           get_at=deltax/2 ! Because Jin = 0, dphi/dy=-phi/2D
-        elseif(regions(1)%get_top_boundary()=='z') ! zero flux b.c.
+        elseif(regions(1)%get_top_boundary()=='z') then ! zero flux b.c.
           get_at=1E30_dp ! Very large?
-        elseif(regions(1)%get_top_boundary()=='a') ! albedo b.c.
+        elseif(regions(1)%get_top_boundary()=='a') then ! albedo b.c.
           alpha = regions(1)%get_top_albedo()
           get_at= ((1-alpha)/(1+alpha))*deltax/2
         else
@@ -282,7 +282,7 @@ END TYPE populate_compressed_2d
         !
         implicit none
         ! Declare calling arguments
-        type(compressed_matrix),INTENT(IN) :: c_matrix
+        type(compressed_matrix),INTENT(OUT) :: c_matrix
         type(mesh),intent(in) :: in_mesh ! Mesh to track the points
         real(dp),INTENT(IN) :: al,ar,at,ab,ac
         INTEGER,INTENT(IN) :: i,j
@@ -295,10 +295,10 @@ END TYPE populate_compressed_2d
         !
         ! Now check for surrounding boxes, if there are any missing , that matrix element will not be added.
         !
-        if (.not.in_mesh%at_edge_l()) call c_matrix%add_element(al,nodei,nodei-1) ! Left node will always be just to the left of central
-        if (.not.in_mesh%at_edge_r()) call c_matrix%add_element(ar,nodei,nodei+1) ! Right node will always be just to the right of central
-        if (.not.in_mesh%at_edge_b()) call c_matrix%add_element(ab,nodei,nodei-in_mesh%get_x_size()) ! Bottom node will always be the row below, so will be central node-(number of x boxes)
-        if (.not.in_mesh%at_edge_t()) call c_matrix%add_element(at,nodei,nodei+in_mesh%get_x_size()) ! Top node will always be the row above, so will be central node+(number of x boxes)
+        if (.not.in_mesh%at_edge_l(i)) call c_matrix%add_element(al,nodei,nodei-1) ! Left node will always be just to the left of central
+        if (.not.in_mesh%at_edge_r(i)) call c_matrix%add_element(ar,nodei,nodei+1) ! Right node will always be just to the right of central
+        if (.not.in_mesh%at_edge_b(j)) call c_matrix%add_element(ab,nodei,nodei-in_mesh%get_x_size()) ! Bottom node will always be the row below, so will be central node-(number of x boxes)
+        if (.not.in_mesh%at_edge_t(j)) call c_matrix%add_element(at,nodei,nodei+in_mesh%get_x_size()) ! Top node will always be the row above, so will be central node+(number of x boxes)
       end subroutine populate_elements_sub
 
   END MODULE populate_compressed_class_2d
