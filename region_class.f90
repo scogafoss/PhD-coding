@@ -1,5 +1,4 @@
 MODULE region_class
-  use precision_set
   use material_class
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  Filename: region_class.f90                                             !!

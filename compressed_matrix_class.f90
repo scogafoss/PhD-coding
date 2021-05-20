@@ -1,5 +1,4 @@
 MODULE compressed_matrix_class
-    use precision_set
     use matrix_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: compressed_matrix_class.f90                                    !!

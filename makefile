@@ -23,20 +23,19 @@ LD=gfortran
 # 									 solver_class.o \
 # 				    test_periodic.o
 OBJS=			    	   precision_set.o \
-									 read_gem_file.o \
 									 maths_class.o \
-									 error_class.o \
 									 line_class.o \
-									 mesh_class.o \
 									 material_class.o \
 									 region_class.o \
+									 mesh_class.o \
 									 region_class_1d.o \
 									 region_class_2d.o \
-									 timer_class.o \
 									 matrix_class.o \
-									 populate_class.o \
 									 compressed_matrix_class.o \
 									 tridiagonal_matrix_class.o \
+									 populate_class.o \
+									 read_gem_file.o \
+									 error_class.o \
 									 populate_tridiagonal_class.o \
 									 populate_compressed_class.o \
 									 populate_compressed_class_2d.o \
@@ -61,7 +60,7 @@ MODS= $(OBJS:.o=.mod)
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # DEFINE EXECUTABLE
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-EXEC=test_periodic
+EXEC=test_2d
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # MAKEFILE VARIABLE

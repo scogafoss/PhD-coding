@@ -302,7 +302,6 @@ logical function at_edge_l_fn(this,index)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   integer,intent(in) :: index ! index for the x_coordinate
-  integer :: i
   at_edge_l_fn =.false. ! False by default
   if (index==1) at_edge_l_fn = .true. ! If first node then true
 end function at_edge_l_fn
@@ -315,7 +314,6 @@ logical function at_edge_r_fn(this,index)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   integer,intent(in) :: index ! index for the x_coordinate
-  integer :: i
   at_edge_r_fn =.false. ! False by default
   if (index==size(this%x_coordinates)) at_edge_r_fn = .true. ! If last box then true
 end function at_edge_r_fn
@@ -328,7 +326,6 @@ logical function at_edge_t_fn(this,index)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   integer,intent(in) :: index ! index for the y_coordinate
-  integer :: i
   at_edge_t_fn =.false. ! False by default
   if (index==size(this%y_coordinates)) at_edge_t_fn = .true. ! If last box then true
 end function at_edge_t_fn
@@ -341,7 +338,6 @@ logical function at_edge_b_fn(this,index)
   ! Declare calling arguments
   class(mesh),intent(in) :: this
   integer,intent(in) :: index ! index for the y_coordinate
-  integer :: i
   at_edge_b_fn =.false. ! False by default
   if (index==1) at_edge_b_fn = .true. ! If first box then true
 end function at_edge_b_fn

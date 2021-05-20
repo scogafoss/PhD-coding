@@ -1,5 +1,4 @@
 MODULE populate_compressed_class_2d
-    use compressed_matrix_class
     use populate_class
     use region_class_2d
     use mesh_class
@@ -50,10 +49,10 @@ END TYPE populate_compressed_2d
     !
     ! Perform the actual discretisation
     !
-    call this%discretisation(in_matrix,regions,boundary_tracker,group)
+    call this%discretisation(in_matrix,regions,group,in_mesh)
   END SUBROUTINE populate_matrix_sub
 
-  subroutine allocate_matrix_sub(c_matrix,in_mesh)
+  subroutine allocate_matrix(c_matrix,in_mesh)
     !
     ! Subroutine to allocate nuclear matrix
     !
@@ -66,7 +65,7 @@ END TYPE populate_compressed_2d
     else
       call c_matrix%set_size(in_mesh%get_y_size(),in_mesh%get_y_size())
     endif
-  end subroutine allocate_matrix_sub
+  end subroutine allocate_matrix
 
   subroutine discretisation_sub(this,c_matrix,regions,group,in_mesh)
     !
@@ -276,7 +275,7 @@ END TYPE populate_compressed_2d
         get_ac = (removal*deltax*deltay) - (al + ar + ab + at)
       end function get_ac
 
-      subroutine populate_elements_sub(c_matrix,in_mesh,al,ar,at,ab,ac,i,j)
+      subroutine populate_elements(c_matrix,in_mesh,al,ar,at,ab,ac,i,j)
         !
         ! Subroutine to fill elements of compressed matrix
         !
@@ -299,6 +298,6 @@ END TYPE populate_compressed_2d
         if (.not.in_mesh%at_edge_r(i)) call c_matrix%add_element(ar,nodei,nodei+1) ! Right node will always be just to the right of central
         if (.not.in_mesh%at_edge_b(j)) call c_matrix%add_element(ab,nodei,nodei-in_mesh%get_x_size()) ! Bottom node will always be the row below, so will be central node-(number of x boxes)
         if (.not.in_mesh%at_edge_t(j)) call c_matrix%add_element(at,nodei,nodei+in_mesh%get_x_size()) ! Top node will always be the row above, so will be central node+(number of x boxes)
-      end subroutine populate_elements_sub
+      end subroutine populate_elements
 
   END MODULE populate_compressed_class_2d

@@ -1,5 +1,4 @@
 MODULE solver_class
-    use matrix_class
     use tridiagonal_matrix_class
     use compressed_matrix_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
