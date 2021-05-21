@@ -37,7 +37,7 @@ program test_2d
     !
     ! Define file names
     !
-    filename = 'input_deck_periodic.dat'
+    filename = 'input_deck_2D.dat'
     gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
     London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     !

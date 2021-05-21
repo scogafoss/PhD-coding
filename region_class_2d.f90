@@ -25,7 +25,7 @@ MODULE region_class_2d
   type(line),pointer :: line_y ! Points to line for region
   CONTAINS
   ! Bound procedures
-  procedure,public :: set_line_id => set_line_id_sub ! Sets line ID
+  procedure,public :: set_line_id => set_line_id_sub ! Sets line ID 
   procedure,public :: associate_line => associate_line_sub ! Points to line
   procedure,public :: get_start => get_start_fn ! Returns the start x
   procedure,public :: get_length => get_length_fn ! Returns length
