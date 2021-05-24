@@ -24,14 +24,14 @@ module initialise_variables
 IMPLICIT NONE
 contains
 
-  subroutine initialise(filename,lines,materials,source_flux,groups,regions,regions2,in_mesh)
+  subroutine initialise(filename,lines,materials,source_flux,total_groups,regions,regions2,in_mesh)
     character(len=*), intent(in) :: filename
     type(region_1d), intent(inout), allocatable, dimension(:) :: regions
     type(region_2d), intent(inout), allocatable, dimension(:) :: regions2
     type(line),  intent(inout), allocatable, dimension(:) :: lines
     type(material), intent(inout), allocatable, dimension(:) :: materials
     type(mesh),INTENT(INOUT) :: in_mesh
-    integer,INTENT(INOUT) :: groups
+    integer,INTENT(INOUT) :: total_groups
     real(dp),intent(out), allocatable, dimension(:,:) :: source_flux ! Source flux array
     integer,allocatable,dimension(:) :: boundary_tracker
     integer :: i,xlines,ylines
@@ -42,8 +42,8 @@ contains
     integer :: total_nodes
     integer :: total_steps
     integer :: total_regions
-    integer :: total_materials, total_lines
-    integer :: total_groups,dimension
+    integer :: total_materials
+    integer :: dimension
     character(80) :: file_line
     character(80) :: mid ! Material ID
     character(80) :: lid ! Line ID
@@ -52,10 +52,10 @@ contains
     !
     ! Read through file.
     !
-    call read_input_deck(filename,total_regions,total_materials,total_groups,dimension,regions,regions2,lines,materials)
+    call read_input_deck(filename,total_regions,total_materials,total_groups,dimension,regions,regions2,lines,materials,boundary_tracker,fission_or_volumetric)
     ! Allocate the lines, materials and the regions
     ! Also define total number of nodes
-    call allocate_variables(regions,lines,filename,total_nodes,materials,in_mesh,source_flux,fission_or_volumetric)    
+    call allocate_variables(regions,regions2,lines,filename,total_nodes,materials,in_mesh,dimension,total_regions,fission_or_volumetric,source_flux,total_groups,boundary_tracker)    
   end subroutine initialise
 
   subroutine correct_source(source,regions,boundary_tracker)
@@ -82,7 +82,7 @@ contains
     end do
   end subroutine correct_source
 
-  subroutine read_input_deck(filename,total_regions,total_materials,total_groups,dimension,regions,regions2,lines,materials)
+  subroutine read_input_deck(filename,total_regions,total_materials,total_groups,dimension,regions,regions2,lines,materials,boundary_tracker,fission_or_volumetric)
     !
     ! Subroutine to read through file.
     !
@@ -96,44 +96,49 @@ contains
     type(material),INTENT(INOUT),allocatable,dimension(:) :: materials
     integer :: i,j,status
     character(80) :: file_line
+    integer,INTENT(INOUT),allocatable,DIMENSION(:) :: boundary_tracker
+    character(80),INTENT(OUT) :: fission_or_volumetric
     open(11,file=filename,iostat=status)
     do
     	read(11,'(A)',iostat=status) file_line ! (10,'(A)') <-- the 10 indicates write to file 10, the '(A)' indicates read the full line as a string
     	if (status /= 0) exit ! exit if end of file (or fail).
         call region_set(file_line,status,total_regions,boundary_tracker)
         call material_set(file_line,status,total_materials,materials)
-        call group_set(file_line,status,groups)
+        call group_set(file_line,status,total_groups)
         call dimension_set(file_line,status,dimension,regions,regions2,total_regions)
         call id_set(file_line,status,dimension,lines,regions,regions2,total_regions)
         call mid_set(file_line,status,total_materials,total_groups,materials)
-        call lid_set(file_line,dimension,status,total_lines,lines)
+        call lid_set(file_line,dimension,status,lines)
         call problem_type_set(file_line,status,fission_or_volumetric)
     end do
     close(11)
 end subroutine read_input_deck
 
-subroutine allocate_variables(regions,lines,filename,total_nodes,materials,in_mesh,source_flux,fission_or_volumetric,dimension,total_regions)
+subroutine allocate_variables(regions,regions2,lines,filename,total_nodes,materials,in_mesh,dimension,total_regions,fission_or_volumetric,source_flux,total_groups,boundary_tracker)
     !
     ! Subroutine to allocate values
     !
     implicit none
     ! Declare calling arguments
     character(len=*),INTENT(IN) :: filename
+    character(80),INTENT(IN) :: fission_or_volumetric
+    real(dp),INTENT(INOUT),ALLOCATABLE,DIMENSION(:,:) :: source_flux
     integer,INTENT(INOUT) :: total_nodes
     type(region_1d),INTENT(INOUT),allocatable,dimension(:) :: regions
     type(region_2d),INTENT(INOUT),allocatable,dimension(:) :: regions2
     type(line),INTENT(INOUT),allocatable,dimension(:) :: lines
     type(material),INTENT(INOUT),allocatable,dimension(:) :: materials
     type(mesh),INTENT(INOUT) :: in_mesh
-    integer :: i,j
-    integer,intent(in) :: dimension,total_regions
+    integer :: i,j,total_steps
+    integer,INTENT(INOUT),DIMENSION(:) :: boundary_tracker
+    integer,intent(in) :: dimension,total_regions,total_groups
     total_nodes=0
     do i = 1, total_regions
         call lines(i)%read_variables(filename)
         if (dimension == 1) then
-            call associate_1d(regions,i,lines,total_nodes,regions,materials,total_regions,filename)
+            call associate_1d(regions,i,lines,total_nodes,materials,total_regions,filename)
         elseif (dimension ==2) then
-            call associate_2d(regions2,i,lines,regions,materials,total_regions,filename)
+            call associate_2d(regions2,i,lines,materials,total_regions,filename)
         else
             stop 'Dimension must be 1 or 2'
         endif
@@ -159,9 +164,8 @@ subroutine allocate_variables(regions,lines,filename,total_nodes,materials,in_me
     ! If in 1D
     !
     else
-      
+      call source_1d(fission_or_volumetric,source_flux,total_nodes,total_groups,regions)
     endif
-    
     if(regions(1)%get_left_boundary()=='p') THEN
       do j=1,total_groups
         do i =1,size(regions)
@@ -179,10 +183,9 @@ subroutine region_set(file_line,status,total_regions,boundary_tracker)
     !
     implicit none
     ! Declare calling arguments
-    character(80),INTENT(IN) :: file_line
+    character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(out) :: total_regions
-    integer,INTENT(INOUT) :: total_nodes
     integer,intent(out),allocatable,dimension(:) :: boundary_tracker
     if (file_line == 'Regions') then
         read(11,*,iostat=status) file_line, total_regions
@@ -196,7 +199,7 @@ subroutine material_set(file_line,status,total_materials,materials)
     !
     implicit none
     ! Declare calling arguments
-    character(80),INTENT(IN) :: file_line
+    character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(out) :: total_materials
     type(material),intent(out),allocatable,dimension(:) :: materials
@@ -206,20 +209,16 @@ subroutine material_set(file_line,status,total_materials,materials)
     endif
 end subroutine material_set
 
-subroutine group_set(file_line,status,groups)
+subroutine group_set(file_line,status,total_groups)
     !
     ! Subroutine to allocate values
     !
     implicit none
     ! Declare calling arguments
-    character(80),INTENT(IN) :: file_line
+    character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
-    integer,intent(out) :: groups
-    integer :: total_groups
-    if (file_line == 'Groups') then
-        read(11,*,iostat=status) file_line, total_groups
-        groups = total_groups
-    endif
+    integer,intent(out) :: total_groups
+    if (file_line == 'Groups') read(11,*,iostat=status) file_line, total_groups
 end subroutine group_set
 
 subroutine dimension_set(file_line,status,dimension,regions,regions2,total_regions)
@@ -228,7 +227,7 @@ subroutine dimension_set(file_line,status,dimension,regions,regions2,total_regio
     !
     implicit none
     ! Declare calling arguments
-    character(80),INTENT(IN) :: file_line
+    character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(in) :: total_regions
     integer,intent(out) :: dimension
@@ -248,14 +247,15 @@ subroutine id_set(file_line,status,dimension,lines,regions,regions2,total_region
     !
     implicit none
     ! Declare calling arguments
-    character(80),INTENT(IN) :: file_line
+    character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(in) :: total_regions
     integer,intent(out) :: dimension
     type(region_1d),INTENT(OUT),dimension(:),allocatable :: regions
     type(region_2d),INTENT(OUT),dimension(:),allocatable :: regions2
-    type(lines),INTENT(OUT),dimension(:),allocatable :: lines
+    type(line),INTENT(OUT),dimension(:),allocatable :: lines
     character(80) :: lid,lid2,mid
+    integer :: i
     if (file_line == 'Region Number, Linex, Liney, Linez, Material ID') then
         if (dimension==1) allocate(lines(1:total_regions))
         do i = 1,total_regions! Loop until no more regions
@@ -287,7 +287,7 @@ subroutine mid_set(file_line,status,total_materials,total_groups,materials)
     character(80),INTENT(IN) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(in) :: total_materials,total_groups
-    type(materials),INTENT(INOUT),dimension(:) :: materials
+    type(material),INTENT(INOUT),dimension(:) :: materials
     character(80) :: mid
     integer :: i,j
     if (file_line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
@@ -306,18 +306,18 @@ subroutine mid_set(file_line,status,total_materials,total_groups,materials)
     endif
 end subroutine mid_set
 
-subroutine lid_set(file_line,dimension,status,total_lines,lines)
+subroutine lid_set(file_line,dimension,status,lines)
     !
     ! Subroutine to allocate material id
     !
     implicit none
     ! Declare calling arguments
-    character(80),INTENT(IN) :: file_line
+    character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(in) :: dimension
-    type(lines),INTENT(INOUT),dimension(:) :: lines
+    type(line),INTENT(INOUT),allocatable,dimension(:) :: lines
     character(80) :: lid
-    integer :: i
+    integer :: i,total_lines
     if (file_line == 'start, length, steps, ref (lxx), dim (x/r,y,z)'.and.dimension==2) then ! only do this for 2D (and later 3D)
         do i =1,3
           read(11,*,iostat=status)
@@ -344,7 +344,7 @@ subroutine problem_type_set(file_line,status,fission_or_volumetric)
     if (file_line == "Source Type - (f)ission or (v)olumetric") read(11,*,iostat=status) fission_or_volumetric
 end subroutine problem_type_set
 
-subroutine associate_1d(regions,i,lines,total_nodes,regions,materials,total_regions,filename)
+subroutine associate_1d(regions,i,lines,total_nodes,materials,total_regions,filename)
     !
     ! Subroutine to allocate material id
     !
@@ -353,8 +353,8 @@ subroutine associate_1d(regions,i,lines,total_nodes,regions,materials,total_regi
     character(len=*),INTENT(IN) :: filename
     integer,INTENT(INOUT) :: total_nodes
     type(region_1d),intent(inout),dimension(:) :: regions
-    type(lines),intent(inout),dimension(:) :: lines
-    type(materials),intent(inout),dimension(:) :: materials
+    type(line),intent(inout),dimension(:) :: lines
+    type(material),intent(inout),dimension(:) :: materials
     integer, intent(in) :: i,total_regions
     integer :: j
     call regions(i)%associate_line(lines(i))
@@ -372,7 +372,7 @@ subroutine associate_1d(regions,i,lines,total_nodes,regions,materials,total_regi
     end do
 end subroutine associate_1d
 
-subroutine associate_2d(regions2,i,lines,total_nodes,regions,materials,total_regions,filename)
+subroutine associate_2d(regions2,i,lines,materials,total_regions,filename)
     !
     ! Subroutine to allocate material id
     !
@@ -380,8 +380,8 @@ subroutine associate_2d(regions2,i,lines,total_nodes,regions,materials,total_reg
     ! Declare calling arguments
     character(len=*),INTENT(IN) :: filename
     type(region_2d),intent(inout),dimension(:) :: regions2
-    type(lines),intent(inout),dimension(:) :: lines
-    type(materials),intent(inout),dimension(:) :: materials
+    type(line),intent(inout),dimension(:) :: lines
+    type(material),intent(inout),dimension(:) :: materials
     integer, intent(in) :: i,total_regions
     integer :: j
     do j = 1, size(materials)
@@ -417,9 +417,8 @@ subroutine source_2d(fission_or_volumetric,source_flux,in_mesh,total_groups,regi
     !
     implicit none
     ! Declare calling arguments
-    character(len=*),INTENT(IN) :: filename
     character(80),intent(in) :: fission_or_volumetric
-    real(dp),intent(out),allocatable,dimension(:) :: source_flux
+    real(dp),intent(out),allocatable,dimension(:,:) :: source_flux
     type(mesh),intent(in) :: in_mesh
     type(region_2d),intent(in),dimension(:) :: regions2
     integer, intent(in) :: total_groups
@@ -442,9 +441,8 @@ subroutine source_1d(fission_or_volumetric,source_flux,total_nodes,total_groups,
     !
     implicit none
     ! Declare calling arguments
-    character(len=*),INTENT(IN) :: filename
     character(80),intent(in) :: fission_or_volumetric
-    real(dp),intent(out),allocatable,dimension(:) :: source_flux
+    real(dp),intent(out),allocatable,dimension(:,:) :: source_flux
     integer, intent(in) :: total_groups,total_nodes
     integer :: source_tracker,i,j,k
     type(region_1d),intent(in),dimension(:) :: regions
