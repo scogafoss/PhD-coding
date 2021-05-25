@@ -60,11 +60,7 @@ END TYPE populate_compressed_2d
     ! Declare calling arguments
     type(compressed_matrix),INTENT(INOUT) :: c_matrix
     type(mesh),intent(in) :: in_mesh ! Mesh to track the points
-    if(in_mesh%number_regions_x()>=in_mesh%number_regions_y()) then
-      call c_matrix%set_size(in_mesh%get_x_size(),in_mesh%get_x_size())
-    else
-      call c_matrix%set_size(in_mesh%get_y_size(),in_mesh%get_y_size())
-    endif
+    call c_matrix%set_size(in_mesh%get_x_size()*in_mesh%get_y_size(),in_mesh%get_x_size()*in_mesh%get_y_size())
   end subroutine allocate_matrix
 
   subroutine discretisation_sub(this,c_matrix,regions,group,in_mesh)
@@ -118,14 +114,16 @@ END TYPE populate_compressed_2d
         ! Define variables used in calculation
         !
         deltay = regions(in_mesh%r(i,j))%get_delta(2)
-        deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
-        deltax2 = regions(in_mesh%r(i-1,j))%get_delta(1)
-        d1 = regions(in_mesh%r(i,j))%get_d(group)
-        d2 = regions(in_mesh%r(i-1,j))%get_d(group)
         !
         ! Perform calculation
         !
         if(.not.in_mesh%at_edge_l(i)) then
+          ! Variables
+          deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
+          deltax2 = regions(in_mesh%r(i-1,j))%get_delta(1)
+          d1 = regions(in_mesh%r(i,j))%get_d(group)
+          d2 = regions(in_mesh%r(i-1,j))%get_d(group)
+          ! Calculation
           get_al=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_left_boundary()=='r') then ! reflective b.c.
@@ -155,14 +153,16 @@ END TYPE populate_compressed_2d
         ! Define variables used in calculation
         !
         deltay = regions(in_mesh%r(i,j))%get_delta(2)
-        deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
-        deltax2 = regions(in_mesh%r(i+1,j))%get_delta(1)
-        d1 = regions(in_mesh%r(i,j))%get_d(group)
-        d2 = regions(in_mesh%r(i+1,j))%get_d(group)
         !
         ! Perform calculation
         !
         if(.not.in_mesh%at_edge_r(i)) then
+          ! Variables
+          deltax1 = regions(in_mesh%r(i,j))%get_delta(1)
+          deltax2 = regions(in_mesh%r(i+1,j))%get_delta(1)
+          d1 = regions(in_mesh%r(i,j))%get_d(group)
+          d2 = regions(in_mesh%r(i+1,j))%get_d(group)
+          ! Calculation
           get_ar=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_right_boundary()=='r') then ! reflective b.c.
@@ -192,14 +192,16 @@ END TYPE populate_compressed_2d
         ! Define variables used in calculation
         !
         deltax = regions(in_mesh%r(i,j))%get_delta(1)
-        deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
-        deltay2 = regions(in_mesh%r(i-1,j))%get_delta(2)
-        d1 = regions(in_mesh%r(i,j))%get_d(group)
-        d2 = regions(in_mesh%r(i-1,j))%get_d(group)
         !
         ! Perform calculation
         !
         if(.not.in_mesh%at_edge_b(j)) then
+          ! Variables
+          deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
+          deltay2 = regions(in_mesh%r(i,j-1))%get_delta(2)
+          d1 = regions(in_mesh%r(i,j))%get_d(group)
+          d2 = regions(in_mesh%r(i,j-1))%get_d(group)
+          ! Calculation
           get_ab=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_bottom_boundary()=='r') then ! reflective b.c.
@@ -229,14 +231,16 @@ END TYPE populate_compressed_2d
         ! Define variables used in calculation
         !
         deltax = regions(in_mesh%r(i,j))%get_delta(1)
-        deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
-        deltay2 = regions(in_mesh%r(i+1,j))%get_delta(2)
-        d1 = regions(in_mesh%r(i,j))%get_d(group)
-        d2 = regions(in_mesh%r(i+1,j))%get_d(group)
         !
         ! Perform calculation
         !
         if(.not.in_mesh%at_edge_t(j)) then
+          ! Variables  
+          deltay1 = regions(in_mesh%r(i,j))%get_delta(2)
+          deltay2 = regions(in_mesh%r(i,j+1))%get_delta(2)
+          d1 = regions(in_mesh%r(i,j))%get_d(group)
+          d2 = regions(in_mesh%r(i,j+1))%get_d(group)
+          ! Calculation
           get_at=(-2*deltax)/((deltay2/d2)+(deltay1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_top_boundary()=='r') then ! reflective b.c.
@@ -281,7 +285,7 @@ END TYPE populate_compressed_2d
         !
         implicit none
         ! Declare calling arguments
-        type(compressed_matrix),INTENT(OUT) :: c_matrix
+        type(compressed_matrix),INTENT(INOUT) :: c_matrix
         type(mesh),intent(in) :: in_mesh ! Mesh to track the points
         real(dp),INTENT(IN) :: al,ar,at,ab,ac
         INTEGER,INTENT(IN) :: i,j

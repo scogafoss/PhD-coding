@@ -173,15 +173,16 @@ SUBROUTINE read_variables_sub(this, filename)
         read(10,*,iostat=status) line,left_albedo,right_albedo
         read(10,*,iostat=status) line,bottom_boundary,top_boundary
         read(10,*,iostat=status) line,bottom_albedo,top_albedo
-        do lineskip = 1,2 ! Skips two lines.
-          read(10,*)
-        end do
         read(10,*,iostat=status) line,surface_source
         this%left_boundary = left_boundary
         this%right_boundary = right_boundary
         this%left_albedo = left_albedo
         this%right_albedo = right_albedo
         this%surface_source = surface_source
+        this%bottom_albedo = bottom_albedo
+        this%top_albedo = top_albedo
+        this%top_boundary = top_boundary
+        this%bottom_boundary = bottom_boundary
       end if
     ELSE ! If there is a defined name
       if (line == 'ref (mxx), sigma_a, source flux, nu sigma_f') then
@@ -217,15 +218,18 @@ SUBROUTINE read_variables_sub(this, filename)
       else if (line == 'Boundaries-') then
         read(10,*,iostat=status) line,left_boundary,right_boundary
         read(10,*,iostat=status) line,left_albedo,right_albedo
-        do lineskip = 1,2 ! Skips two lines.
-          read(10,*)
-        end do
+        read(10,*,iostat=status) line,bottom_boundary,top_boundary
+        read(10,*,iostat=status) line,bottom_albedo,top_albedo
         read(10,*,iostat=status) line,surface_source
         this%left_boundary = left_boundary
         this%right_boundary = right_boundary
         this%left_albedo = left_albedo
         this%right_albedo = right_albedo
         this%surface_source = surface_source
+        this%bottom_albedo = bottom_albedo
+        this%top_albedo = top_albedo
+        this%top_boundary = top_boundary
+        this%bottom_boundary = bottom_boundary
       end if
     end if
   end do

@@ -19,8 +19,8 @@ MODULE region_class_2d
   ! Type definition
   TYPE,PUBLIC,extends(region) :: region_2d ! This will be the name we instantiate
   ! Instance variables.
-  character(80) :: line_id_x ! line label in x direction(or r)
-  character(80) :: line_id_y ! line label in y direction
+  character(80) :: line_id_x='default' ! line label in x direction(or r)
+  character(80) :: line_id_y='default' ! line label in y direction
   type(line),pointer :: line_x ! Points to line for region
   type(line),pointer :: line_y ! Points to line for region
   CONTAINS
@@ -63,14 +63,16 @@ MODULE region_class_2d
       !
       IMPLICIT NONE
       ! Declare calling arguments
-      CLASS(region_2d),INTENT(OUT) :: this ! Region object
+      CLASS(region_2d),INTENT(INOUT) :: this ! Region object
       integer,INTENT(IN) :: dimension
       character(len=*),INTENT(IN) :: id
       ! Save data
       if (dimension==1) then
         this%line_id_x = id
+        print *,'set ',id,'as x line'
       elseif (dimension==2) then
         this%line_id_y = id
+        print *,'set ',id,'as y line'
       else 
         stop 'Line must point in x or y direction'
       endif
@@ -198,10 +200,10 @@ MODULE region_class_2d
       CLASS(region_2d),INTENT(IN) :: this ! region object
       integer,INTENT(IN) :: dimension ! Dimension of the desired line
       if(dimension==1)then
-        if(.not.associated(this%line_x)) stop 'Error no x line associated with region'
+        if(this%line_id_x=='default') stop 'Error no x line id associated with region'
         get_line_id_fn = this%line_id_x
       elseif(dimension==2)then
-        if(.not.associated(this%line_y)) stop 'Error no y line associated with region'
+        if(this%line_id_y=='default') stop 'Error no y line id associated with region'
         get_line_id_fn = this%line_id_y
       else
         stop 'Dimension must be 1 or 2'

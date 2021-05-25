@@ -44,6 +44,7 @@ procedure,public :: at_edge_r => at_edge_r_fn
 procedure,public :: at_edge_t => at_edge_t_fn
 procedure,public :: at_edge_b => at_edge_b_fn
 procedure,public :: r => r_fn ! Returns the index of region which corresponds to desired i,j box
+procedure,public :: index => index_fn ! Calculates the corresponding 1D array index for given i and j
 END TYPE mesh
 ! Restrict access to the actual procedure names
 PRIVATE :: fill_coordinates_sub
@@ -65,6 +66,7 @@ private :: at_edge_r_fn
 private :: at_edge_t_fn
 private :: at_edge_b_fn
 private :: r_fn
+private :: index_fn
 ! Now add methods
 CONTAINS
 
@@ -344,7 +346,7 @@ end function at_edge_b_fn
 
 integer function r_fn(this,indexx,indexy)
   !
-  ! function to search a list-index for the last zero or negative element. If not present returns the first element.
+  ! function to search a list-index for the last zero or negative element. If not present returns the first element. Used to figure out what region a box is in.
   !
   implicit NONE
   ! Declare calling arguments
@@ -365,11 +367,22 @@ integer function r_fn(this,indexx,indexy)
     if(this%y_boundaries(i)-indexy==0) then
       r_fn = r_fn + ((i-1)*this%number_regions_x()) ! If the boudnary - index = 0 implies at edge of a region but still in it
       exit
-    elseif(this%x_boundaries(i)-indexx<0) then
+    elseif(this%y_boundaries(i)-indexy<0) then
       r_fn = r_fn + ((i)*this%number_regions_x()) ! If the boudnary - index = 0 implies at edge of a region but still in it
       exit
     endif
   end do
 end function r_fn
+
+integer function index_fn(this,indexx,indexy)
+!
+! function to search a list-index for the last zero or negative element. If not present returns the first element. Used to figure out what region a box is in.
+!
+implicit NONE
+! Declare calling arguments
+class(mesh),intent(in) :: this
+INTEGER,INTENT(IN) :: indexx,indexy
+index_fn=indexx+((indexy-1)*this%get_x_size())
+end function index_fn
 
 end module mesh_class

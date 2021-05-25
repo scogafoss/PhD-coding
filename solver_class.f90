@@ -1,6 +1,8 @@
 MODULE solver_class
     use tridiagonal_matrix_class
     use compressed_matrix_class
+    use mesh_class
+    use region_class_2d
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: solver_class.f90                                               !!
   !!                                                                           !!
@@ -39,6 +41,7 @@ MODULE solver_class
     procedure,public :: scatter_source => scatter_source_fn ! Returns the scatter source
     procedure,public :: x_coordinates =>  x_coordinates_sub ! Returns the position of each node in the problem
     procedure,public :: normalise => normalise_fn ! Returns normalisation
+    procedure,public :: allocate_1d => allocate_1d_sub ! Allocates 1D variables
     END TYPE solver
     ! Restrict access to the actual procedure names
     PRIVATE :: multigroup_solver_sub
@@ -50,11 +53,12 @@ MODULE solver_class
     PRIVATE :: scatter_source_fn
     PRIVATE :: x_coordinates_sub
     PRIVATE :: normalise_fn
+    PRIVATE :: allocate_1d_sub
 
     ! Now add methods
     contains
 
-    SUBROUTINE multigroup_solver_sub(this, phi, keff, regions, matrix_array,c_matrix,source_flux,x_coordinate)
+    SUBROUTINE multigroup_solver_sub(this, phi, keff, regions,regions2, matrix_array,c_matrix,source_flux,x_coordinate,in_mesh)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -68,10 +72,12 @@ MODULE solver_class
         real(dp) :: keff_temp !from the previous iteration
         real(dp),allocatable,dimension(:,:) :: source
         real(dp),ALLOCATABLE,DIMENSION(:) :: source_temp
-        type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
+        type(mesh),INTENT(IN),OPTIONAL :: in_mesh
+        type(region_1d),INTENT(in),dimension(:),OPTIONAL :: regions
+        type(region_2d),INTENT(in),dimension(:),OPTIONAL :: regions2
         type(tridiagonal_matrix),INTENT(IN),dimension(:),OPTIONAL :: matrix_array ! array of tridiagonal matrices
         type(compressed_matrix),INTENT(IN),DIMENSION(:),OPTIONAL :: c_matrix ! array of compressed matrices.
-        integer,dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
+        integer,dimension(:),ALLOCATABLE :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp) :: convergence_criterion
         integer :: region_iterator
         integer :: total_steps
@@ -90,31 +96,14 @@ MODULE solver_class
         convergence_criterion = 1e-5
         ! Record where boundaries are, so can use correct values of fission and delta
         total_steps = 0
-        !
-        ! Track where region boundaries are
-        !
-        do region_iterator =1,size(regions)
-            total_steps = total_steps + regions(region_iterator)%get_steps()
-            boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the edge of last boundary
-        end do
-        if(present(matrix_array)) then
-            groups = size(matrix_array)
-        else if(present(c_matrix)) then
-            groups = size(c_matrix)
+        if (present(matrix_array)) then
+            call allocate_1d(this,regions,boundary_tracker,total_steps,region_iterator,groups,source,f_rate,source_temp,keff,phi,phi_temp,x_coordinate,matrix_array=matrix_array)
+        elseif (present(c_matrix)) then
+            if(present(regions)) call allocate_1d(this,regions,boundary_tracker,total_steps,region_iterator,groups,source,f_rate,source_temp,keff,phi,phi_temp,x_coordinate,c_matrix=c_matrix)
+            if(present(regions2)) call allocate_2d(regions2,groups,in_mesh,source,f_rate,source_temp,keff,phi,phi_temp,c_matrix)
         else
-            stop 'need a matrix array for solver'
-        end if
-        allocate(source(1:total_steps+1,1:groups))
-        allocate(f_rate(1:total_steps+1))
-        allocate(source_temp(1:total_steps+1))
-        ! Initial guesses
-        keff = 1
-        allocate(phi(1:total_steps+1,1:groups))
-        allocate(phi_temp(1:total_steps+1,1:groups))
-        phi = 1
-        phi_temp=1
-        allocate(x_coordinate(1:total_steps+1))
-        call this%x_coordinates(total_steps,regions,boundary_tracker,x_coordinate) ! Calculates x coordinates in the problem
+            stop 'Need a matrix array'
+        endif
         !
         ! If source flux is not allocated, then this is an eigenvalue problem.
         !
@@ -130,7 +119,7 @@ MODULE solver_class
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
                 call this%flux_iteration(phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,c_matrix,boundary_tracker,&
-                convergence_criterion,total_steps,groups,f_rate)
+                convergence_criterion,total_steps,groups,f_rate,regions2,in_mesh)
                 !
                 ! Now calculate next keff and store the previous
                 !
@@ -139,8 +128,8 @@ MODULE solver_class
                 denominator = 0
                 region_iterator=1
                 ! Summed over nodes
-                call this%k_iteration(phi,phi_temp,source,regions,boundary_tracker,region_iterator,groups,numerator,denominator,&
-                f_rate,total_steps,keff,x_coordinate)
+                if(present(regions)) call this%k_iteration(phi,phi_temp,source,regions,boundary_tracker,region_iterator,groups,numerator,denominator,f_rate,total_steps,keff,x_coordinate,regions2,in_mesh)
+                if(present(regions2)) call k_iteration_2d(phi,phi_temp,source,regions2,groups,numerator,denominator,f_rate,keff,in_mesh)
                 k_iterations = k_iterations +1
                 !
                 ! Calculate the new keff
@@ -150,10 +139,11 @@ MODULE solver_class
                 ! If the convergence_criterion has been met, use the new keff and exit the loop
                 !
                 if (abs((keff-keff_temp)/keff_temp)<convergence_criterion) then
-                    f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
+                    if(present(regions))f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
+                    if(present(regions2))f_rate=fission_reaction_rate_2d(groups,phi,regions2,in_mesh)
                     do group=1,groups
-                        source(:,group)=(f_rate*regions(1)%get_probability(group)/keff)+this%scatter_source(group,groups,&
-                        total_steps,phi,regions,boundary_tracker)
+                        if(present(regions))source(:,group)=(f_rate*regions(1)%get_probability(group)/keff)+this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
+                        if(present(regions2))source(:,group)=(f_rate*regions2(1)%get_probability(group)/keff)+scatter_source_2d(group,groups,phi,regions2,in_mesh)
                     end do
                     do group=1,groups
                         if (present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
@@ -172,8 +162,8 @@ MODULE solver_class
             ! Do loop to perform iteration on energy groups (continues till convergence of phi)
             !
             do
-                call this%fixed_source_iteration(groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array,&
-                c_matrix)
+                if(present(regions))call this%fixed_source_iteration(groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array,c_matrix)
+                if(present(regions2))call fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix)
                 ! Now this iteration will continue until the fluxes converge
                 phi_iterations=phi_iterations+1
                 print*,'min=',(minval(abs(phi-phi_temp))/maxval(phi))
@@ -185,7 +175,8 @@ MODULE solver_class
         !
         ! Normalise the flux values
         !
-        normalisation = this%normalise(source_flux,f_rate,regions,boundary_tracker,total_steps,x_coordinate,keff)
+        if(present(regions))normalisation = this%normalise(source_flux,f_rate,regions,boundary_tracker,total_steps,x_coordinate,keff)
+        if(present(regions2))normalisation=normalise_2d(source_flux,f_rate,regions2,in_mesh)
         ! Now normalise flux
         phi = phi / normalisation
         print *, 'Number of flux iterations = ',phi_iterations
@@ -194,7 +185,7 @@ MODULE solver_class
     END SUBROUTINE multigroup_solver_sub
 
     subroutine flux_iteration_sub(this,phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,c_matrix,boundary_tracker,&
-        convergence_criterion,total_steps,groups,f_rate)
+        convergence_criterion,total_steps,groups,f_rate,regions2,in_mesh)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -206,9 +197,11 @@ MODULE solver_class
         real(dp),INTENT(INOUT),allocatable,dimension(:,:) :: phi_temp ! phi from the previous iteration
         real(dp),INTENT(in) :: keff
         real(dp),INTENT(INOUT),allocatable,dimension(:,:) :: source
-        type(region_1d),INTENT(in),allocatable,dimension(:) :: regions
+        type(region_1d),INTENT(in),allocatable,dimension(:),OPTIONAL :: regions
+        type(region_2d),INTENT(in),allocatable,dimension(:),OPTIONAL :: regions2
         type(tridiagonal_matrix),INTENT(IN),dimension(:),optional :: matrix_array ! array of tridiagonal matrices
         type(compressed_matrix),INTENT(IN),dimension(:),optional :: c_matrix
+        type(mesh),INTENT(IN) :: in_mesh
         integer,intent(inout),dimension(size(regions)) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp),INTENT(IN) :: convergence_criterion
         integer,INTENT(IN) :: total_steps
@@ -223,7 +216,8 @@ MODULE solver_class
         !
         ! First find the fission reaction rate for this iteration
         !
-        f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
+        if(present(regions))f_rate=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
+        if(present(regions2))f_rate=fission_reaction_rate_2d(groups,phi,regions2,in_mesh)
         !
         ! Now loop scatter till convergence
         !
@@ -235,12 +229,14 @@ MODULE solver_class
                 !
                 ! Correct source flux for fission, but only if there is no volumetric source
                 !
-                source_s=this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
+                if(present(regions))source_s=this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
+                if(present(regions2))source_s=scatter_source_2d(group,gorups,phi,regions2,in_mesh)
                 !
                 ! Now have the total source so can find the phi iteration for current group
                 !
                 phi_temp(:,group)=phi(:,group)
-                source(:,group)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
+                if(present(regions))source(:,group)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
+                if(present(regions2))source(:,group)=source_s+(f_rate*(regions2(1)%get_probability(group)/keff))
                 if(present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
                 if(present(c_matrix)) phi(:,group)=matrix_array(group)%solve(source(:,group))
                 ! This needs to be done for all of the groups, so loop here
@@ -315,6 +311,46 @@ MODULE solver_class
         end do
         ! print*,'numerator=',numerator,'denominator=',denominator,'phi=',phi
     end subroutine k_iteration_sub
+
+    subroutine k_iteration_2d(phi,phi_temp,source,regions2,groups,numerator,denominator,&
+        f_rate,keff,in_mesh)
+        !
+        ! Subroutine to perfrom power iteration (assumes no volumetric_source)
+        !
+        IMPLICIT NONE
+        ! Declare calling arguments
+        real(dp),INTENT(inout),dimension(:,:) :: phi ! Rows are groups, columns are nodes
+        real(dp),intent(inout),dimension(:,:) :: phi_temp ! phi from the previous iteration
+        real(dp),INTENT(INOUT),dimension(:,:) :: source
+        real(dp),INTENT(IN),dimension(:) :: f_rate
+        real(dp),dimension(size(f_rate)) :: f_rate_new
+        type(region_2d),INTENT(in),dimension(:) :: regions2
+        type(mesh),INTENT(IN) :: in_mesh
+        integer :: i,j,index
+        integer :: group
+        integer,INTENT(IN) :: groups
+        real(dp),INTENT(INOUT) :: numerator
+        real(dp),INTENT(INOUT) :: denominator
+        real(dp),INTENT(in) :: keff
+        real(dp) :: deltax,deltay
+        ! First find the new fission source produced by the flux from flux iterations
+        f_rate_new=fission_reaction_rate_2d(groups,phi,regions2,in_mesh)
+        if (sum(phi)<50000.AND.sum(phi)>5000) print*,'f rate =',f_rate,'f rate new=',f_rate_new,'flux =',phi
+        ! Summed over nodes
+        do j=1,in_mesh%get_y_size()
+            do i = 1,in_mesh%get_x_size()
+                index=in_mesh%index(i,j)
+                deltax=regions(in_mesh%r(i,j))%get_delta(1)
+                deltay=regions(in_mesh%r(i,j))%get_delta(2)
+                ! First find numerator and denominator
+                ! New fission source
+                numerator=numerator+(deltax*(f_rate_new(index))*deltay)
+                ! Previous iteration's fission source
+                denominator=denominator+(deltax*(f_rate(index))*deltay)
+            end do
+        enddo
+        ! print*,'numerator=',numerator,'denominator=',denominator,'phi=',phi
+    end subroutine k_iteration_2d
 
     subroutine fixed_source_iteration_sub(this,groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array,&
         c_matrix)
@@ -393,6 +429,59 @@ MODULE solver_class
         end do
     end subroutine fixed_source_iteration_sub
 
+    subroutine fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix)
+        !
+        ! Subroutine to perfrom flux iteration on fixed source
+        !
+        IMPLICIT NONE
+        ! Declare calling arguments
+        class(mesh),INTENT(IN) :: in_mesh
+        real(dp),INTENT(inout),allocatable,dimension(:,:) :: phi ! Rows are groups, columns are nodes
+        real(dp),INTENT(INOUT),allocatable,dimension(:,:) :: phi_temp ! phi from the previous iteration
+        real(dp),allocatable,dimension(:,:) :: source
+        real(dp),INTENT(IN),dimension(:,:) :: source_flux
+        type(region_2d),INTENT(in),allocatable,dimension(:) :: regions2
+        type(compressed_matrix),INTENT(IN),dimension(:),OPTIONAL :: c_matrix ! array of matrices
+        integer :: i,j
+        integer :: group
+        integer,INTENT(IN) :: groups
+        integer :: group_iterator,index
+        !
+        ! Need to perform calculation for each energy group
+        !
+        do group = 1,groups
+            !
+            ! Correct source flux for fission, but only if there is no volumetric source
+            !
+            !need to sum each of the possible sources of scatter
+            source = source_flux ! volumetric source only
+            ! Loop for each box
+            do i = 1, in_mesh%get_x_size()
+                do j = 1, in_mesh%get_y_size()
+                    index = i+((j-1)*in_mesh%get_x_size())
+                    ! Loop for each group to sum the total scatter
+                    do group_iterator = 1,groups ! group iterator -> g' and group -> g
+                        ! If not in the same group then fine
+                        if (group_iterator /= group) then
+                            source(index,group) = source(index,group)+(phi(index,group_iterator)*&
+                            ((regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))))
+                            ! If in the same group only fission contributes
+                        else
+                            source(index,group) = source(index,group)
+                        end if
+                    end do
+                enddo
+            end do
+            !
+            ! Now have the total source so can find the phi iteration for current group
+            !
+            phi_temp(:,group)=phi(:,group)
+            phi(:,group)=c_matrix(group)%solve(source(:,group))
+            ! print*,'test S', source(:,group)
+            ! This needs to be done for all of the groups, so loop here
+        end do
+    end subroutine fixed_source_iteration_2d
+
     function fission_reaction_rate_fn(this,groups,phi,regions,boundary_tracker,total_steps) result(fission_source)
         !
         ! function to calculate fission source
@@ -436,6 +525,36 @@ MODULE solver_class
             end if
         end do
     end function fission_reaction_rate_fn
+
+    function fission_reaction_rate_2d(groups,phi,regions2,in_mesh) result(fission_source)
+        !
+        ! function to calculate fission source in 2D
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: groups
+        real(dp),INTENT(IN),DIMENSION(:,:) :: phi
+        type(region_2d),INTENT(IN),DIMENSION(:) :: regions2
+        type(mesh),INTENT(IN) :: in_mesh
+        real(dp),dimension(size(phi(:,1))) :: fission_source ! Fission source
+        integer :: group_iterator
+        integer :: i,j,index
+        !
+        ! Correct source flux for fission, but only if there is no volumetric source
+        !
+        !need to sum each of the possible sources of fission and scatter
+        fission_source=0 ! Reset each source back to zero as new flux will change fission source
+        ! Loop for each node
+        do j = 1, in_mesh%get_y_size()
+            do i = 1, in_mesh%get_x_size()
+                index = i +((j-1)*in_mesh%get_x_size())
+                ! Loop for each group to sum the total fission contribution and scatter
+                do group_iterator = 1,groups ! group iterator -> g' and group -> g
+                    fission_source(index)=fission_source(index)+((phi(index,group_iterator))*&
+                    regions(in_mesh%r(i,j))%get_fission(group_iterator))
+                end do
+            end do
+        enddo
+    end function fission_reaction_rate_2d
 
     function scatter_source_fn(this,group,groups,total_steps,phi,regions,boundary_tracker) result(scatter_source)
         !
@@ -487,6 +606,40 @@ MODULE solver_class
             end if
         end do
     end function scatter_source_fn
+
+    function scatter_source_2d(group,groups,phi,regions2,in_mesh) result(scatter_source)
+        !
+        ! function to calculate scatter source
+        !
+        IMPLICIT NONE
+        integer,INTENT(IN) :: group
+        integer,INTENT(IN) :: groups
+        real(dp),INTENT(IN),DIMENSION(:,:) :: phi
+        type(region_2d),INTENT(IN),DIMENSION(:) :: regions2
+        type(mesh),INTENT(IN) :: in_mesh
+        real(dp),dimension(size(phi(:,1))) :: scatter_source ! Fission source
+        integer :: group_iterator
+        integer :: i,j,index
+        !
+        ! Correct source flux for fission, but only if there is no volumetric source
+        !
+        !need to sum each of the possible sources of fission and scatter
+        scatter_source=0 ! Reset each source back to zero as new flux will change fission source
+        ! Loop for each node
+        do j=1,in_mesh%get_y_size()
+            do i = 1, in_mesh%get_x_size()
+                index=in_mesh%index(i,j)
+                ! Loop for each group to sum the total fission contribution and scatter
+                do group_iterator = 1,groups ! group iterator -> g' and group -> g
+                    ! If not in the same group then fine
+                    if (group_iterator /= group) then
+                        scatter_source(index)=scatter_source(index)+(phi(index,group_iterator)*&
+                        regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))
+                    end if
+                end do
+            end do
+        enddo
+    end function scatter_source_2d
 
     subroutine x_coordinates_sub(this,total_steps,regions,boundary_tracker,x_coordinate)
         !
@@ -552,5 +705,111 @@ MODULE solver_class
             normalise_fn=1
         end if
     end function normalise_fn
+
+    subroutine allocate_1d_sub(this,regions,boundary_tracker,total_steps,region_iterator,groups,source,f_rate,source_temp,keff,phi,phi_temp,x_coordinate,matrix_array,c_matrix)
+        !
+        ! Subroutine to allocate variables for problem
+        !
+        implicit none
+        type(solver),INTENT(INOUT) :: this
+        type(region_1d),INTENT(IN),DIMENSION(:) :: regions
+        integer,INTENT(OUT),ALLOCATABLE,DIMENSION(:) :: boundary_tracker
+        integer,INTENT(INOUT) :: total_steps,region_iterator
+        integer,INTENT(OUT) :: groups
+        real(dp),INTENT(OUT),ALLOCATABLE,DIMENSION(:,:) :: source,phi,phi_temp
+        real(dp),INTENT(OUT),ALLOCATABLE,DIMENSION(:) :: f_rate,source_temp,x_coordinate
+        real(dp),INTENT(OUT) :: keff
+        type(matrix),INTENT(IN),DIMENSION(:),OPTIONAL :: matrix_array
+        type(compressed_matrix),INTENT(IN),DIMENSION(:),OPTIONAL :: c_matrix
+        !
+        ! Track where region boundaries are
+        !
+        allocate(boundary_tracker(1:size(regions)))
+        do region_iterator =1,size(regions)
+            total_steps = total_steps + regions(region_iterator)%get_steps()
+            boundary_tracker(region_iterator) = total_steps+1 ! tracks the x values where there is a boundary, also the edge of last boundary
+        end do
+        if(present(matrix_array)) then
+            groups = size(matrix_array)
+        else if(present(c_matrix)) then
+            groups = size(c_matrix)
+        else
+            stop 'need a matrix array for solver'
+        end if
+        allocate(source(1:total_steps+1,1:groups))
+        allocate(f_rate(1:total_steps+1))
+        allocate(source_temp(1:total_steps+1))
+        ! Initial guesses
+        keff = 1
+        allocate(phi(1:total_steps+1,1:groups))
+        allocate(phi_temp(1:total_steps+1,1:groups))
+        phi = 1
+        phi_temp=1
+        allocate(x_coordinate(1:total_steps+1))
+        call this%x_coordinates(total_steps,regions,boundary_tracker,x_coordinate) ! Calculates x coordinates in the problem
+    end subroutine allocate_1d_sub
+
+    subroutine allocate_2d_sub(regions2,groups,in_mesh,source,f_rate,source_temp,keff,phi,phi_temp,c_matrix)
+        !
+        ! Subroutine to allocate variables for problem
+        !
+        implicit none
+        type(mesh),INTENT(IN) :: in_mesh
+        type(region_2d),INTENT(IN),DIMENSION(:) :: regions2
+        integer,INTENT(OUT) :: groups
+        real(dp),INTENT(OUT),ALLOCATABLE,DIMENSION(:,:) :: source,phi,phi_temp
+        real(dp),INTENT(OUT),ALLOCATABLE,DIMENSION(:) :: f_rate,source_temp
+        real(dp),INTENT(OUT) :: keff
+        type(compressed_matrix),INTENT(IN),DIMENSION(:) :: c_matrix
+        groups = size(c_matrix)
+        allocate(source(1:in_mesh%get_x_size()*in_mesh%get_y_size(),1:groups))
+        allocate(f_rate(1:in_mesh%get_x_size()*in_mesh%get_y_size()))
+        allocate(source_temp(1:in_mesh%get_x_size()*in_mesh%get_y_size()))
+        ! Initial guesses
+        keff = 1
+        allocate(phi(1:in_mesh%get_x_size()*in_mesh%get_y_size(),1:groups))
+        allocate(phi_temp(1:in_mesh%get_x_size()*in_mesh%get_y_size(),1:groups))
+        phi = 1
+        phi_temp=1
+    end subroutine allocate_2d_sub
+
+    real(dp) function trapezoid_2d(f_rate,in_mesh,regions2)
+        !
+        ! Function to calculate 2d integral using trapezoid rule
+        !
+        implicit none
+        real(dp),INTENT(IN),DIMENSION(:) :: f_rate
+        type(region_2d),INTENT(IN) :: regions2
+        type(mesh),INTENT(IN) :: in_mesh
+        integer :: i,j,index
+        real(dp) :: deltax,deltay
+        trapezoid_2d=0
+        do j=1,in_mesh%get_y_size()
+            do i=1,in_mesh%get_x_size()
+                index=i+((j-1)*in_mesh%get_x_size())
+                deltax=regions2(in_mesh%r(i,j))%get_delta(1)
+                deltay=regions2(in_mesh%r(i,j))%get_delta(2)
+                trapezoid_2d=trapezoid_2d+(f_rate(index)*deltax*deltay)
+            enddo
+        enddo
+    end function trapezoid_2d
+
+    real(dp) function normalise_2d(source_flux,f_rate,regions2,in_mesh)
+        !
+        ! function to calculate normalisation
+        !
+        IMPLICIT NONE
+        real(dp),intent(in),allocatable,DIMENSION(:,:) :: source_flux
+        type(region_2d),INTENT(IN),DIMENSION(:) :: regions2
+        real(dp),INTENT(IN),DIMENSION(:) :: f_rate
+        type(mesh),INTENT(IN) :: in_mesh
+        ! If fission source
+        if (.not.(allocated(source_flux))) then
+            normalise_2d=trapezoid_2d(f_rate,in_mesh,regions2)
+        ! If volumetric
+        else
+            normalise_2d=1
+        end if
+    end function normalise_2d
 
 end module solver_class

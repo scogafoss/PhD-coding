@@ -55,7 +55,7 @@ contains
     call read_input_deck(filename,total_regions,total_materials,total_groups,dimension,regions,regions2,lines,materials,boundary_tracker,fission_or_volumetric)
     ! Allocate the lines, materials and the regions
     ! Also define total number of nodes
-    call allocate_variables(regions,regions2,lines,filename,total_nodes,materials,in_mesh,dimension,total_regions,fission_or_volumetric,source_flux,total_groups,boundary_tracker)    
+    call allocate_variables(regions,regions2,lines,filename,total_nodes,materials,in_mesh,dimension,total_regions,fission_or_volumetric,source_flux,total_groups,boundary_tracker)
   end subroutine initialise
 
   subroutine correct_source(source,regions,boundary_tracker)
@@ -134,7 +134,6 @@ subroutine allocate_variables(regions,regions2,lines,filename,total_nodes,materi
     integer,intent(in) :: dimension,total_regions,total_groups
     total_nodes=0
     do i = 1, total_regions
-        call lines(i)%read_variables(filename)
         if (dimension == 1) then
             call associate_1d(regions,i,lines,total_nodes,materials,total_regions,filename)
         elseif (dimension ==2) then
@@ -146,35 +145,31 @@ subroutine allocate_variables(regions,regions2,lines,filename,total_nodes,materi
     call in_mesh%fill_coordinates(lines)
     ! Add one to the nodes so that it is correct number of x values
     total_nodes = total_nodes +1
-    !
-    ! Correct if periodic B.C
-    !
-    if (regions(1)%get_left_boundary()=='p') then
-      total_nodes = total_nodes -1 ! One less node
-      if (regions(size(regions))%get_steps()<2) stop 'Need 2 or more steps per region for periodic boundary'
-      call regions(size(regions))%set_steps(regions(size(regions))%get_steps()-1) ! Reduce the number of steps in rightmost region by 1
-    end if
     ! If the source type is volumetric, allocate the source flux, otherwise don't allocate, use to check later.
     !
     ! If 2D
     !
-    if (allocated(regions2)) then
+    if (dimension ==2) then
       call source_2d(fission_or_volumetric,source_flux,in_mesh,total_groups,regions2)
     !
     ! If in 1D
     !
     else
       call source_1d(fission_or_volumetric,source_flux,total_nodes,total_groups,regions)
-    endif
-    if(regions(1)%get_left_boundary()=='p') THEN
-      do j=1,total_groups
-        do i =1,size(regions)
-          total_steps = total_steps + regions(i)%get_steps()
-          boundary_tracker(i) = total_steps + 1 ! Stores the boundary between regions
+      ! If periodic correct source
+      if (regions(1)%get_left_boundary()=='p') then
+        total_nodes = total_nodes -1 ! One less node
+        if (regions(size(regions))%get_steps()<2) stop 'Need 2 or more steps per region for periodic boundary'
+        call regions(size(regions))%set_steps(regions(size(regions))%get_steps()-1) ! Reduce the number of steps in rightmost region by 1
+        do j=1,total_groups
+            do i =1,size(regions)
+              total_steps = total_steps + regions(i)%get_steps()
+              boundary_tracker(i) = total_steps + 1 ! Stores the boundary between regions
+            end do
+            call correct_source(source_flux(:,j),regions,boundary_tracker)
         end do
-        call correct_source(source_flux(:,j),regions,boundary_tracker)
-      end do
     end if
+    endif
 end subroutine allocate_variables
 
 subroutine region_set(file_line,status,total_regions,boundary_tracker)
@@ -202,7 +197,7 @@ subroutine material_set(file_line,status,total_materials,materials)
     character(80),INTENT(INOUT) :: file_line
     integer,INTENT(INOUT) :: status
     integer,intent(out) :: total_materials
-    type(material),intent(out),allocatable,dimension(:) :: materials
+    type(material),intent(inout),allocatable,dimension(:) :: materials
     if (file_line == 'Materials') then
         read(11,*,iostat=status) file_line, total_materials
         allocate(materials(1:total_materials))
@@ -231,8 +226,8 @@ subroutine dimension_set(file_line,status,dimension,regions,regions2,total_regio
     integer,INTENT(INOUT) :: status
     integer,intent(in) :: total_regions
     integer,intent(out) :: dimension
-    type(region_1d),INTENT(OUT),dimension(:),allocatable :: regions
-    type(region_2d),INTENT(OUT),dimension(:),allocatable :: regions2
+    type(region_1d),INTENT(INOUT),dimension(:),allocatable :: regions
+    type(region_2d),INTENT(INOUT),dimension(:),allocatable :: regions2
     if(index(file_line,'Dimension:')/=0) then
         backspace(unit=11) ! Go back to the start of the line
         read(11,*,iostat=status) file_line, dimension
@@ -251,21 +246,21 @@ subroutine id_set(file_line,status,dimension,lines,regions,regions2,total_region
     integer,INTENT(INOUT) :: status
     integer,intent(in) :: total_regions
     integer,intent(out) :: dimension
-    type(region_1d),INTENT(OUT),dimension(:),allocatable :: regions
-    type(region_2d),INTENT(OUT),dimension(:),allocatable :: regions2
-    type(line),INTENT(OUT),dimension(:),allocatable :: lines
+    type(region_1d),INTENT(INOUT),dimension(:) :: regions
+    type(region_2d),INTENT(INOUT),dimension(:) :: regions2
+    type(line),INTENT(INOUT),dimension(:),allocatable :: lines
     character(80) :: lid,lid2,mid
     integer :: i
     if (file_line == 'Region Number, Linex, Liney, Linez, Material ID') then
         if (dimension==1) allocate(lines(1:total_regions))
         do i = 1,total_regions! Loop until no more regions
-          if (allocated(regions)) then
+          if (dimension==1) then
             read(11,*,iostat=status) file_line, lid, mid
             call regions(i)%set_line_id(lid)
             call regions(i)%set_material_id(mid)
             ! Can immediately set the line ID
             call lines(i)%set_id(lid)
-          elseif(allocated(regions2)) THEN
+          elseif(dimension==2) THEN
             read(11,*,iostat=status) file_line, lid,lid2, mid
             call regions2(i)%set_line_id(lid,1)
             call regions2(i)%set_line_id(lid2,2)
@@ -318,8 +313,9 @@ subroutine lid_set(file_line,dimension,status,lines)
     type(line),INTENT(INOUT),allocatable,dimension(:) :: lines
     character(80) :: lid
     integer :: i,total_lines
+    total_lines=0
     if (file_line == 'start, length, steps, ref (lxx), dim (x/r,y,z)'.and.dimension==2) then ! only do this for 2D (and later 3D)
-        do i =1,3
+        do i =1,2
           read(11,*,iostat=status)
         end do
         read(11,*,iostat=status) file_line, total_lines
@@ -374,7 +370,7 @@ end subroutine associate_1d
 
 subroutine associate_2d(regions2,i,lines,materials,total_regions,filename)
     !
-    ! Subroutine to allocate material id
+    ! Subroutine to associate region i with lines and materials
     !
     implicit none
     ! Declare calling arguments
@@ -387,8 +383,8 @@ subroutine associate_2d(regions2,i,lines,materials,total_regions,filename)
     do j = 1, size(materials)
         ! Associate correct rgion with correct material
         if (materials(j)%get_id() == regions2(i)%get_material_id()) then
-        call regions2(i)%associate_material(materials(j))
-        print *, 'associated region',i,'with material',j
+            call regions2(i)%associate_material(materials(j))
+            print *, 'associated region',i,'with material ',materials(j)%get_id()
         end if
         ! Define the materials (at the last region just so it only happens once)
         if (i==total_regions) then
@@ -396,17 +392,15 @@ subroutine associate_2d(regions2,i,lines,materials,total_regions,filename)
         end if
     end do
     do j = 1, size(lines)
+        ! Define the lines (at the first region just so it only happens once)
+        if (i==1) call lines(j)%read_variables(filename)
         ! Associate correct rgion with correct material
         if (lines(j)%get_id() == regions2(i)%get_line_id(1)) then
             call regions2(i)%associate_line(lines(j))
-            print *, 'associated region',i,'with x line',j
+            print *, 'associated region',i,'with x line ',regions2(i)%get_line_id(1)
         elseif (lines(j)%get_id() == regions2(i)%get_line_id(2)) then
             call regions2(i)%associate_line(lines(j))
-            print *, 'associated region',i,'with y line',j
-        end if
-        ! Define the lines (at the last region just so it only happens once)
-        if (i==total_regions) then
-            call lines(j)%read_variables(filename)
+            print *, 'associated region',i,'with y line ',regions2(i)%get_line_id(2)
         end if
     end do
 end subroutine associate_2d
@@ -427,9 +421,9 @@ subroutine source_2d(fission_or_volumetric,source_flux,in_mesh,total_groups,regi
         allocate(source_flux(1:in_mesh%get_x_size()*in_mesh%get_y_size(),1:total_groups))
         do k=1,total_groups
             do j=1,in_mesh%get_y_size()
-            do i=1,in_mesh%get_x_size()
-                source_flux(i+((j-1)*in_mesh%get_x_size()),k)=regions2(in_mesh%r(i,j))%get_source_flux(k)
-            enddo
+                do i=1,in_mesh%get_x_size()
+                    source_flux(i+((j-1)*in_mesh%get_x_size()),k)=regions2(in_mesh%r(i,j))%get_source_flux(k)
+                enddo
             enddo
         enddo
     end if

@@ -71,14 +71,14 @@ program test_2d
     ! Perform the multigroup solve
     !
     if(allocated(regions2)) then
-        call solve%multigroup_solver(finite_phi,keff,regions,c_matrix=c_matrix_array,source_flux=source_flux,&
-        x_coordinate=x_coordinate)
+        call solve%multigroup_solver(finite_phi,keff,regions2=regions2,c_matrix=c_matrix_array,source_flux=source_flux,&
+        x_coordinate=x_coordinate,in_mesh=in_mesh)
     else
         if(regions(1)%get_left_boundary()=='p') then
-            call solve%multigroup_solver(finite_phi,keff,regions,c_matrix=c_matrix_array,source_flux=source_flux,&
+            call solve%multigroup_solver(finite_phi,keff,regions=regions,c_matrix=c_matrix_array,source_flux=source_flux,&
             x_coordinate=x_coordinate)
         else
-            call solve%multigroup_solver(finite_phi,keff,regions,matrix_array=matrix_array,source_flux=source_flux,&
+            call solve%multigroup_solver(finite_phi,keff,regions=regions,matrix_array=matrix_array,source_flux=source_flux,&
             x_coordinate=x_coordinate)
         endif
     endif    

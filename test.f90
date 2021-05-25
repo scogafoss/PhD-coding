@@ -1,18 +1,30 @@
+subroutine testing(a,b)
+    implicit none
+    integer,INTENT(INOUT) :: a
+    integer,INTENT(IN),OPTIONAL :: b
+    ! call subtest(a,b)
+    if(present(b)) then
+        a=b
+    else
+        a=3
+    endif
+end subroutine testing
+
+! subroutine subtest(a,b)
+!     implicit none
+!     INTEGER,INTENT(INOUT) :: a
+!     INTEGER,INTENT(IN),OPTIONAL :: b
+    ! if(present(b)) then
+    !     a=b
+    ! else
+    !     a=3
+    ! endif
+! end subroutine subtest
+
 program test_sign
     implicit none
-
-!   integer, allocatable :: data(:)
-
-!   data = [-3,  3,  0,  2, -3]
-!   write(*,*) data
-
-!   write(*,*) findloc(sign(1, data), 1)
-!   write(*,*) findloc(sign(1, data), 1, back=.true.)
-  print *, sign(-12,1)
-  print *, sign(-12,0)
-  print *, sign(-12,-1)
-
-  print *, sign(-12.,1.)
-  print *, sign(-12.,0.)
-  print *, sign(-12.,-1.)
-  end program test_sign
+    integer :: a,b
+    b=2
+    call testing(a,b)
+    print *, a
+end program test_sign
