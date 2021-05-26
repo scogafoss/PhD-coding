@@ -31,7 +31,7 @@ program test_2d
     character(150) :: gem_file
     integer :: m
     integer :: k
-    integer :: i
+    integer :: i,j
     integer :: groups
     real(dp),ALLOCATABLE,DIMENSION(:) :: x_coordinate
     !
@@ -88,17 +88,33 @@ program test_2d
     !
     open(60, file ='x_y1_y2.txt')
     open(70, file ='xgem_ygem1_ygem2.txt')
-    do i=1,size(x_coordinate)
-        write(60,*) x_coordinate(i), finite_phi(i,:)
-    end do
+    open(50, file ='phi_2d.txt')
+    if (allocated(regions)) then
+        do i=1,size(x_coordinate)
+            write(60,*) x_coordinate(i), finite_phi(i,:)
+        end do
+        call read_gem(gem_file,gem_x,gem_phi)
+        do i=1,size(gem_x)
+            write(70,*) gem_x(i),gem_phi(i,:)
+        end do
+        do i = 1,groups
+            print *,'group',i,'L2 = ',error1%l2_from_fluxes(finite_phi(:,i),x_coordinate,gem_phi(:,i),gem_x), 'delta = ',&
+            x_coordinate(2)-x_coordinate(1)
+        end do
+    elseif (allocated(regions2))then
+        ! print*,'phi',finite_phi
+        do i=1,size(finite_phi(:,1))
+            write(50,*) finite_phi(i,:)
+        enddo
+    endif
+    close(50)
     close (60)
-    call read_gem(gem_file,gem_x,gem_phi)
-    do i=1,size(gem_x)
-        write(70,*) gem_x(i),gem_phi(i,:)
-    end do
     close (70)
-    do i = 1,groups
-        print *,'group',i,'L2 = ',error1%l2_from_fluxes(finite_phi(:,i),x_coordinate,gem_phi(:,i),gem_x), 'delta = ',&
-        x_coordinate(2)-x_coordinate(1)
-    end do
+    print*,'test phi',finite_phi
+    ! do j=1,c_matrix_array(1)%get_rows()
+    !     do i=1,c_matrix_array(1)%get_columns()
+    !         print*,'row',j,'column',i
+    !         print*,'test elements',c_matrix_array(1)%get_element(j,i)
+    !     enddo
+    ! enddo
   end program test_2d

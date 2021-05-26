@@ -416,13 +416,18 @@ subroutine source_2d(fission_or_volumetric,source_flux,in_mesh,total_groups,regi
     type(mesh),intent(in) :: in_mesh
     type(region_2d),intent(in),dimension(:) :: regions2
     integer, intent(in) :: total_groups
-    integer :: i,j,k
+    real(dp) :: deltax,deltay
+    integer :: i,j,k,r,index
     if (fission_or_volumetric == "v") then
         allocate(source_flux(1:in_mesh%get_x_size()*in_mesh%get_y_size(),1:total_groups))
         do k=1,total_groups
             do j=1,in_mesh%get_y_size()
                 do i=1,in_mesh%get_x_size()
-                    source_flux(i+((j-1)*in_mesh%get_x_size()),k)=regions2(in_mesh%r(i,j))%get_source_flux(k)
+                    index = in_mesh%index(i,j)
+                    r = in_mesh%r(i,j)
+                    deltax = regions2(r)%get_delta(1)
+                    deltay = regions2(r)%get_delta(2)
+                    source_flux(index,k)=regions2(r)%get_source_flux(k)*deltax*deltay ! volumetric source * area of box
                 enddo
             enddo
         enddo

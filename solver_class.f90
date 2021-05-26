@@ -119,7 +119,7 @@ MODULE solver_class
                 ! Do loop to perform iteration on energy groups (continues till convergence of phi)
                 !
                 call this%flux_iteration(phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,c_matrix,boundary_tracker,&
-                convergence_criterion,total_steps,groups,f_rate,regions2,in_mesh)
+                convergence_criterion,total_steps,groups,f_rate,regions2,in_mesh,max_iteration)
                 !
                 ! Now calculate next keff and store the previous
                 !
@@ -147,7 +147,7 @@ MODULE solver_class
                     end do
                     do group=1,groups
                         if (present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
-                        if (present(c_matrix)) phi(:,group)=matrix_array(group)%solve(source(:,group))
+                        if (present(c_matrix)) phi(:,group)=c_matrix(group)%solve(source(:,group))
                     end do
                     exit
                 end if
@@ -185,7 +185,7 @@ MODULE solver_class
     END SUBROUTINE multigroup_solver_sub
 
     subroutine flux_iteration_sub(this,phi_iterations,phi,phi_temp,keff,source,regions,matrix_array,c_matrix,boundary_tracker,&
-        convergence_criterion,total_steps,groups,f_rate,regions2,in_mesh)
+        convergence_criterion,total_steps,groups,f_rate,regions2,in_mesh,max_iteration)
         !
         ! Subroutine to perfrom power iteration (assumes no volumetric_source)
         !
@@ -204,7 +204,7 @@ MODULE solver_class
         type(mesh),INTENT(IN) :: in_mesh
         integer,intent(inout),dimension(:) :: boundary_tracker ! Labels the values of i where boundaries between regions are
         real(dp),INTENT(IN) :: convergence_criterion
-        integer,INTENT(IN) :: total_steps
+        integer,INTENT(IN) :: total_steps,max_iteration
         integer :: group
         integer,INTENT(IN) :: groups
         real(dp),intent(inout),DIMENSION(:) :: f_rate ! Fission source
@@ -229,8 +229,10 @@ MODULE solver_class
                 !
                 ! Correct source flux for fission, but only if there is no volumetric source
                 !
+                print*,'source s before',source_s
                 if(present(regions))source_s=this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
                 if(present(regions2))source_s=scatter_source_2d(group,groups,phi,regions2,in_mesh)
+                print*,'source s after',source_s
                 !
                 ! Now have the total source so can find the phi iteration for current group
                 !
@@ -238,11 +240,12 @@ MODULE solver_class
                 if(present(regions))source(:,group)=source_s+(f_rate*(regions(1)%get_probability(group)/keff))
                 if(present(regions2))source(:,group)=source_s+(f_rate*(regions2(1)%get_probability(group)/keff))
                 if(present(matrix_array)) phi(:,group)=matrix_array(group)%solve(source(:,group))
-                if(present(c_matrix)) phi(:,group)=matrix_array(group)%solve(source(:,group))
+                if(present(c_matrix)) phi(:,group)=c_matrix(group)%solve(source(:,group))
                 ! This needs to be done for all of the groups, so loop here
             end do
             ! Now this iteration will continue until the fluxes converge
             phi_iterations=phi_iterations+1
+            if (phi_iterations>=max_iteration) stop 'Max flux iterations reached'
             if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
             ! This exits the do loop for flux iterations
         end do
@@ -456,23 +459,22 @@ MODULE solver_class
             !need to sum each of the possible sources of scatter
             source = source_flux ! volumetric source only
             ! Loop for each box
-            do i = 1, in_mesh%get_x_size()
-                do j = 1, in_mesh%get_y_size()
-                    index = i+((j-1)*in_mesh%get_x_size())
+            do j = 1, in_mesh%get_y_size()
+                do i = 1, in_mesh%get_x_size()
+                    index = in_mesh%index(i,j)
                     ! Loop for each group to sum the total scatter
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
                         if (group_iterator /= group) then
                             source(index,group) = source(index,group)+(phi(index,group_iterator)*&
                             ((regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))))
-                            ! If in the same group only fission contributes
+                        ! If in the same group no additional in scatter
                         else
                             source(index,group) = source(index,group)
                         end if
                     end do
                 enddo
             end do
-            !
             ! Now have the total source so can find the phi iteration for current group
             !
             phi_temp(:,group)=phi(:,group)
@@ -631,7 +633,7 @@ MODULE solver_class
                 index=in_mesh%index(i,j)
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
-                    ! If not in the same group then fine
+                    ! If not in the same group then scatter in
                     if (group_iterator /= group) then
                         scatter_source(index)=scatter_source(index)+(phi(index,group_iterator)*&
                         regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))

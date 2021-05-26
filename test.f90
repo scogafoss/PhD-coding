@@ -1,30 +1,24 @@
-subroutine testing(a,b)
-    implicit none
-    integer,INTENT(INOUT) :: a
-    integer,INTENT(IN),OPTIONAL :: b
-    ! call subtest(a,b)
-    if(present(b)) then
-        a=b
-    else
-        a=3
-    endif
-end subroutine testing
-
-! subroutine subtest(a,b)
-!     implicit none
-!     INTEGER,INTENT(INOUT) :: a
-!     INTEGER,INTENT(IN),OPTIONAL :: b
-    ! if(present(b)) then
-    !     a=b
-    ! else
-    !     a=3
-    ! endif
-! end subroutine subtest
-
 program test_sign
+    use compressed_matrix_class
     implicit none
-    integer :: a,b
-    b=2
-    call testing(a,b)
-    print *, a
+    type(compressed_matrix) :: c
+    real(dp),DIMENSION(9) ::s
+    integer :: i,j
+    real(dp) :: value
+    call c%set_size(9,9)
+    do i=1,9
+        value=i
+        call c%add_element(value,i,i)
+    enddo
+    do i=3,9,2
+        value=i
+        call c%add_element(value,1,i)
+        call c%add_element(value,i,1)
+    enddo    
+    do i=1,9
+        value=9+i
+        s(i)=value
+    enddo
+    print*,'solve',c%solve(s)
+
 end program test_sign
