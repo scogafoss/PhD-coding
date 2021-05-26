@@ -449,7 +449,8 @@ MODULE solver_class
         integer :: i,j
         integer :: group
         integer,INTENT(IN) :: groups
-        integer :: group_iterator,index
+        integer :: group_iterator,index,r
+        real(dp) :: deltax,deltay
         !
         ! Need to perform calculation for each energy group
         !
@@ -463,10 +464,13 @@ MODULE solver_class
             do j = 1, in_mesh%get_y_size()
                 do i = 1, in_mesh%get_x_size()
                     index = in_mesh%index(i,j)
+                    r = in_mesh%r(i,j)
+                    deltax = regions2(r)%get_delta(1)
+                    deltay = regions2(r)%get_delta(2)
                     ! Loop for each group to sum the total scatter
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
-                        if (group_iterator /= group) source(index,group) = source(index,group)+((phi(index,group_iterator)*((regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))))*regions2(in_mesh%r(i,j))%get_delta(1)*regions2(in_mesh%r(i,j))%get_delta(2))
+                        if (group_iterator /= group) source(index,group) = source(index,group)+((phi(index,group_iterator)*((regions2(r)%get_scatter(group_iterator,group))))*deltax*deltay)
                     end do
                 enddo
             end do
@@ -534,7 +538,8 @@ MODULE solver_class
         type(mesh),INTENT(IN) :: in_mesh
         real(dp),dimension(size(phi(:,1))) :: fission_source ! Fission source
         integer :: group_iterator
-        integer :: i,j,index
+        integer :: i,j,index,r
+        real(dp) :: deltax,deltay
         !
         ! Correct source flux for fission, but only if there is no volumetric source
         !
@@ -543,11 +548,14 @@ MODULE solver_class
         ! Loop for each node
         do j = 1, in_mesh%get_y_size()
             do i = 1, in_mesh%get_x_size()
-                index = i +((j-1)*in_mesh%get_x_size())
+                index = in_mesh%index(i,j)
+                r = in_mesh%r(i,j)
+                deltax = regions2(r)%get_delta(1)
+                deltay = regions2(r)%get_delta(2)                
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
-                    fission_source(index)=fission_source(index)+((phi(index,group_iterator))*&
-                    regions2(in_mesh%r(i,j))%get_fission(group_iterator))
+                    fission_source(index)=fission_source(index)+(((phi(index,group_iterator))*&
+                    regions2(r)%get_fission(group_iterator))*deltax*deltay)
                 end do
             end do
         enddo
@@ -616,7 +624,8 @@ MODULE solver_class
         type(mesh),INTENT(IN) :: in_mesh
         real(dp),dimension(size(phi(:,1))) :: scatter_source ! Fission source
         integer :: group_iterator
-        integer :: i,j,index
+        integer :: i,j,index,r
+        real(dp) :: deltax,deltay
         !
         ! Correct source flux for fission, but only if there is no volumetric source
         !
@@ -625,13 +634,16 @@ MODULE solver_class
         ! Loop for each node
         do j=1,in_mesh%get_y_size()
             do i = 1, in_mesh%get_x_size()
-                index=in_mesh%index(i,j)
+                index = in_mesh%index(i,j)
+                r = in_mesh%r(i,j)
+                deltax = regions2(r)%get_delta(1)
+                deltay = regions2(r)%get_delta(2)                
                 ! Loop for each group to sum the total fission contribution and scatter
                 do group_iterator = 1,groups ! group iterator -> g' and group -> g
                     ! If not in the same group then scatter in
                     if (group_iterator /= group) then
-                        scatter_source(index)=scatter_source(index)+(phi(index,group_iterator)*&
-                        regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))
+                        scatter_source(index)=scatter_source(index)+((phi(index,group_iterator)*&
+                        regions2(r)%get_scatter(group_iterator,group))*deltax*deltay)
                     end if
                 end do
             end do
