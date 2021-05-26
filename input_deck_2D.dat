@@ -17,10 +17,10 @@ Region Number, Linex, Liney, Linez, Material ID
 material_by_correlation
 #material_by_value
 ref (mxx), sigma_a, source flux, nu sigma_f
-m01 1.0 0.0 1.0
-m01 1.5 0.0 2.0
-m02 2.0 0.0 3.0
-m02 1.0 0.0 4.0
+m01 1.0 1.0 0.0
+m01 1.5 2.0 0.0
+m02 2.0 3.0 0.0
+m02 1.0 4.0 0.0
 
 ------------SCATTER CROSS SECTIONS------------------
 m01
@@ -45,7 +45,7 @@ forward
 
 --------------------------------------
 Source Type - (f)ission or (v)olumetric
-f
+v
 
 -----------------DATA IN CRITERIA SPEC--------
 Boundaries-

@@ -166,6 +166,7 @@ MODULE solver_class
                 if(present(regions2))call fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix)
                 ! Now this iteration will continue until the fluxes converge
                 phi_iterations=phi_iterations+1
+                if(phi_iterations>max_iteration) stop 'Max flux iterations reached for volumetric source'
                 print*,'min=',(minval(abs(phi-phi_temp))/maxval(phi))
                 print*,'phi=',(phi(1,1))
                 if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
@@ -465,13 +466,7 @@ MODULE solver_class
                     ! Loop for each group to sum the total scatter
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
-                        if (group_iterator /= group) then
-                            source(index,group) = source(index,group)+(phi(index,group_iterator)*&
-                            ((regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))))
-                        ! If in the same group no additional in scatter
-                        else
-                            source(index,group) = source(index,group)
-                        end if
+                        if (group_iterator /= group) source(index,group) = source(index,group)+((phi(index,group_iterator)*((regions2(in_mesh%r(i,j))%get_scatter(group_iterator,group))))*regions2(in_mesh%r(i,j))%get_delta(1)*regions2(in_mesh%r(i,j))%get_delta(2))
                     end do
                 enddo
             end do
