@@ -420,6 +420,7 @@ subroutine source_2d(fission_or_volumetric,source_flux,in_mesh,total_groups,regi
     integer :: i,j,k,r,index
     if (fission_or_volumetric == "v") then
         allocate(source_flux(1:in_mesh%get_x_size()*in_mesh%get_y_size(),1:total_groups))
+        source_flux=0
         do k=1,total_groups
             do j=1,in_mesh%get_y_size()
                 do i=1,in_mesh%get_x_size()

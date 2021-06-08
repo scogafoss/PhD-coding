@@ -126,7 +126,7 @@ END function vector_multiply_fn
         end do
     end do
     ! Initial values
-    convergence = 1e-5_dp
+    convergence = 1e-8_dp
     solution=0_dp
     residual=0_dp
     residual = source_flux - this%vector_multiply(solution)
@@ -139,7 +139,10 @@ END function vector_multiply_fn
         solution = solution + alpha * basis_vector
         residual = residual - alpha * Ap
         rsnew = dot_product(residual,residual)
-        if (sqrt(rsnew) < convergence) exit
+        if (sqrt(rsnew) < convergence) then
+            print*,'CG convergence met'
+            exit
+        endif
         basis_vector = residual + (rsnew / rsold) * basis_vector
         rsold = rsnew
     end do

@@ -41,6 +41,7 @@ OBJS=			    	   precision_set.o \
 									 populate_compressed_class_2d.o \
 									 initialise_variables.o \
 									 solver_class.o \
+									 timer_class.o \
 				    test_2d.o
 
 

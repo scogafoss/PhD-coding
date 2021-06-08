@@ -167,8 +167,8 @@ MODULE solver_class
                 ! Now this iteration will continue until the fluxes converge
                 phi_iterations=phi_iterations+1
                 if(phi_iterations>max_iteration) stop 'Max flux iterations reached for volumetric source'
-                print*,'min=',(minval(abs(phi-phi_temp))/maxval(phi))
-                print*,'phi=',(phi(1,1))
+                ! print*,'min=',(minval(abs(phi-phi_temp))/maxval(phi))
+                ! print*,'phi=',(phi(1,1))
                 if((minval(abs(phi-phi_temp))/maxval(phi))<convergence_criterion) exit
                 ! This exits the do loop for flux iterations
             end do
@@ -815,7 +815,7 @@ MODULE solver_class
             normalise_2d=trapezoid_2d(f_rate,in_mesh,regions2)
         ! If volumetric
         else
-            normalise_2d=1
+            normalise_2d=1_dp
         end if
     end function normalise_2d
 
