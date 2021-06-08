@@ -129,12 +129,12 @@ END TYPE populate_compressed_2d
         elseif(regions(1)%get_left_boundary()=='r') then ! reflective b.c.
           get_al=0 ! Because Jnet = 0
         elseif(regions(1)%get_left_boundary()=='v') then! vacuum b.c.
-          get_al=deltay/2 ! Because Jin = 0, dphi/dx=phi/2D
+          get_al=-deltay/2 ! Because Jin = 0, dphi/dx=phi/2D
         elseif(regions(1)%get_left_boundary()=='z') then! zero flux b.c.
-          get_al=1E30_dp ! Very large?
+          get_al=-1E30_dp ! Very large?
         elseif(regions(1)%get_left_boundary()=='a') then! albedo b.c.
           alpha = regions(1)%get_left_albedo()
-          get_al= ((1-alpha)/(1+alpha))*deltay/2
+          get_al= -1*((1-alpha)/(1+alpha))*deltay/2
         else
           stop 'Unrecognised left boundary condition'
         endif
@@ -168,12 +168,12 @@ END TYPE populate_compressed_2d
         elseif(regions(1)%get_right_boundary()=='r') then ! reflective b.c.
           get_ar=0 ! Because Jout = 0
         elseif(regions(1)%get_right_boundary()=='v') then ! vacuum b.c.
-          get_ar=deltay/2 ! Because Jin = 0, dphi/dx=-phi/2D
+          get_ar=-deltay/2 ! Because Jin = 0, dphi/dx=-phi/2D
         elseif(regions(1)%get_right_boundary()=='z') then ! zero flux b.c.
-          get_ar=1E30_dp ! Very large?
+          get_ar=-1E30_dp ! Very large?
         elseif(regions(1)%get_right_boundary()=='a') then ! albedo b.c.
           alpha = regions(1)%get_right_albedo()
-          get_ar= ((1-alpha)/(1+alpha))*deltay/2
+          get_ar= -1*((1-alpha)/(1+alpha))*deltay/2
         else
           stop 'Unrecognised right boundary condition'
         endif
@@ -207,12 +207,12 @@ END TYPE populate_compressed_2d
         elseif(regions(1)%get_bottom_boundary()=='r') then ! reflective b.c.
           get_ab=0 ! Because Jout = 0
         elseif(regions(1)%get_bottom_boundary()=='v') then ! vacuum b.c.
-          get_ab=deltax/2 ! Because Jin = 0, dphi/dy=phi/2D
+          get_ab=-deltax/2 ! Because Jin = 0, dphi/dy=phi/2D
         elseif(regions(1)%get_bottom_boundary()=='z') then ! zero flux b.c.
-          get_ab=1E30_dp ! Very large?
+          get_ab=-1E30_dp ! Very large?
         elseif(regions(1)%get_bottom_boundary()=='a') then ! albedo b.c.
           alpha = regions(1)%get_bottom_albedo()
-          get_ab= ((1-alpha)/(1+alpha))*deltax/2
+          get_ab= -1*((1-alpha)/(1+alpha))*deltax/2
         else
           stop 'Unrecognised bottom boundary condition'
         endif
@@ -246,12 +246,12 @@ END TYPE populate_compressed_2d
         elseif(regions(1)%get_top_boundary()=='r') then ! reflective b.c.
           get_at=0 ! Because Jout = 0
         elseif(regions(1)%get_top_boundary()=='v') then ! vacuum b.c.
-          get_at=deltax/2 ! Because Jin = 0, dphi/dy=-phi/2D
+          get_at=-deltax/2 ! Because Jin = 0, dphi/dy=-phi/2D
         elseif(regions(1)%get_top_boundary()=='z') then ! zero flux b.c.
-          get_at=1E30_dp ! Very large?
+          get_at=-1E30_dp ! Very large?
         elseif(regions(1)%get_top_boundary()=='a') then ! albedo b.c.
           alpha = regions(1)%get_top_albedo()
-          get_at= ((1-alpha)/(1+alpha))*deltax/2
+          get_at= -1*((1-alpha)/(1+alpha))*deltax/2
         else
           stop 'Unrecognised top boundary condition'
         endif

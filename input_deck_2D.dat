@@ -3,9 +3,9 @@ Total: 2
 Materials
 Total: 2
 Groups
-Total: 2
+Total: 1
 Fission probability
-0.5 0.5
+1.0
 Dimension: 2
 Coordinate: rz
 Max_Dims: 100.0 40.0
@@ -17,27 +17,23 @@ Region Number, Linex, Liney, Linez, Material ID
 material_by_correlation
 #material_by_value
 ref (mxx), sigma_a, source flux, nu sigma_f
-m01 1.0 0.0 1.0
-m01 1.5 0.0 2.0
-m02 2.0 0.0 3.0
-m02 1.0 0.0 4.0
+m01 1.0 1.0 0.0
+m02 1.0 2.0 0.0
 
 ------------SCATTER CROSS SECTIONS------------------
 m01
-1.0 2.0
-3.0 4.0
+0.0
 m02
-1.5 2.5
-3.5 4.5
+0.0
 
 ------------LINE DEFINITIONS------------------
 start, length, steps, ref (lxx), dim (x/r,y,z)
 Lines
 Scheme: box
 Num: 3
-0.0 0.5 10 l01 1
-0.0 0.5 10 l02 2
-0.5 0.5 10 l03 1
+0.0 1.0 3 l01 1
+0.0 1.0 3 l02 2
+1.0 1.0 3 l03 1
 
 -----------------------------------------------
 FluxType
@@ -45,14 +41,14 @@ forward
 
 --------------------------------------
 Source Type - (f)ission or (v)olumetric
-f
+v
 
 -----------------DATA IN CRITERIA SPEC--------
 Boundaries-
-left_right_boundary r r
-left_right_albedo 0.0 0.5
-bottom_top_boundary r r
-bottom_top_albedo 0.0 0.0
+left_right_boundary a a
+left_right_albedo 0.0 0.0
+bottom_top_boundary a a
+bottom_top_albedo 1.0 1.0
 surface_source 3
 
 --------------------------------------

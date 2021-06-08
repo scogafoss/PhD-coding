@@ -230,10 +230,8 @@ MODULE solver_class
                 !
                 ! Correct source flux for fission, but only if there is no volumetric source
                 !
-                print*,'source s before',source_s
                 if(present(regions))source_s=this%scatter_source(group,groups,total_steps,phi,regions,boundary_tracker)
                 if(present(regions2))source_s=scatter_source_2d(group,groups,phi,regions2,in_mesh)
-                print*,'source s after',source_s
                 !
                 ! Now have the total source so can find the phi iteration for current group
                 !

@@ -35,6 +35,7 @@ MODULE compressed_matrix_class
   procedure,public :: set_size => set_size_sub ! Set rows and columns dimensions.
   procedure,public :: get_rows => get_rows_fn ! Function to return number of rows
   procedure,public :: get_columns => get_columns_fn ! Function to return number of columns
+  procedure,public :: print_all => print_all_sub ! prints the values, then columns, then rows.
   END TYPE compressed_matrix
   ! Restrict access to the actual procedure names
   PRIVATE :: set_variables_sub
@@ -46,6 +47,7 @@ MODULE compressed_matrix_class
   private :: set_size_sub
   private :: get_rows_fn
   private :: get_columns_fn
+  private :: print_all_sub
   ! Now add methods
   CONTAINS
 
@@ -323,5 +325,17 @@ integer function get_columns_fn(this)
     class(compressed_matrix),INTENT(IN) :: this
     get_columns_fn=this%columns
 end function get_columns_fn
+
+subroutine print_all_sub(this)
+    !
+    ! Sub to set size of matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),INTENT(INOUT) :: this
+    print*,this%values
+    print*,this%column_index
+    print*,this%row_index
+end subroutine print_all_sub
 
   END MODULE compressed_matrix_class

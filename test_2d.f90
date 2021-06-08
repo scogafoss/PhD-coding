@@ -38,8 +38,10 @@ program test_2d
     ! Define file names
     !
     filename = 'input_deck_2D.dat'
+    ! gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
+    ! London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
-    London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
+    London/PhD/Gem events/jack_square.event/out/detect/jack_square"
     !
     ! Initialise the necessary variables for problem
     !
@@ -67,9 +69,20 @@ program test_2d
             endif
         endif
     end do
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test !!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! do i=1,c_matrix_array(1)%get_columns()
+    !     print*,'row 1, column',i,c_matrix_array(1)%get_element(1,i)
+    ! enddo
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test !!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
     ! Perform the multigroup solve
     !
+    i=1
+    call c_matrix_array(1)%print_all()
     if(allocated(regions2)) then
         call solve%multigroup_solver(finite_phi,keff,regions2=regions2,c_matrix=c_matrix_array,source_flux=source_flux,&
         x_coordinate=x_coordinate,in_mesh=in_mesh)
@@ -103,14 +116,15 @@ program test_2d
         end do
     elseif (allocated(regions2))then
         ! print*,'phi',finite_phi
-        do i=1,size(finite_phi(:,1))
-            write(50,*) finite_phi(i,:)
+        ! print out the first row of boxes
+        ! call read_gem(gem_file,gem_x,gem_phi)
+        do i=1,in_mesh%get_x_size()
+            write(50,*) finite_phi(i,:),in_mesh%get_x(i)!,gem_x(i),gem_phi(i,1)
         enddo
     endif
     close(50)
     close (60)
     close (70)
-    print*,'test phi',finite_phi
     ! do j=1,c_matrix_array(1)%get_rows()
     !     do i=1,c_matrix_array(1)%get_columns()
     !         print*,'row',j,'column',i
