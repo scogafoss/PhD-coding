@@ -192,7 +192,7 @@ CONTAINS
     CLASS(region),INTENT(IN) :: this ! region object
     real(dp) :: value
     integer,INTENT(IN) :: row
-    integer,OPTIONAL :: column
+    integer,OPTIONAL :: column ! If column is present, the scatter from group 'row' to group 'column' is required, otherwise total scatter of group 'row' is required.
     if(.not.associated(this%materials)) stop 'Error no material associated with region (scatter)'
     if (present(column)) then
       value = this%materials%get_scatter(row,column)

@@ -140,8 +140,9 @@ END function vector_multiply_fn
         residual = residual - alpha * Ap
         rsnew = dot_product(residual,residual)
         if (sqrt(rsnew) < convergence) then
-            print*,'CG convergence met'
             exit
+        elseif (i==size(source_flux)) then
+            print*,'CG convergence not met'
         endif
         basis_vector = residual + (rsnew / rsold) * basis_vector
         rsold = rsnew

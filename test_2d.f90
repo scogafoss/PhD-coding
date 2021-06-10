@@ -143,5 +143,5 @@ program test_2d
     !
     ! Timer
     !
-    print*, 'Time to complete in seconds', t%elapsed_time()
+    print*, 'Time to complete in seconds:', t%elapsed_time()
   end program test_2d

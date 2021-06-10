@@ -124,7 +124,7 @@ END TYPE populate_compressed_2d
           d1 = regions(in_mesh%r(i,j))%get_d(group)
           d2 = regions(in_mesh%r(i-1,j))%get_d(group)
           ! Calculation
-          get_al=(-2*deltay)/((deltax2/d2)+(deltax1/d1))
+          get_al=(-2_dp*deltay)/((deltax2/d2)+(deltax1/d1))
         ! If at edge will have logic later in populate_elements to ignore it. 
         elseif(regions(1)%get_left_boundary()=='r') then ! reflective b.c.
           get_al=0 ! Because Jnet = 0

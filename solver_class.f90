@@ -177,7 +177,7 @@ MODULE solver_class
         ! Normalise the flux values
         !
         if(present(regions))normalisation = this%normalise(source_flux,f_rate,regions,boundary_tracker,total_steps,x_coordinate,keff)
-        if(present(regions2))normalisation=normalise_2d(source_flux,f_rate,regions2,in_mesh)
+        if(present(regions2))normalisation=normalise_2d(source_flux,f_rate,regions2,in_mesh,keff)
         ! Now normalise flux
         phi = phi / normalisation
         print *, 'Number of flux iterations = ',phi_iterations
@@ -289,7 +289,6 @@ MODULE solver_class
         real(dp),INTENT(IN),DIMENSION(:) :: x_coordinate
         ! First find the new fission source produced by the flux from flux iterations
         f_rate_new=this%fission_reaction_rate(groups,phi,regions,boundary_tracker,total_steps)
-        if (sum(phi)<50000.AND.sum(phi)>5000) print*,'f rate =',f_rate,'f rate new=',f_rate_new,'flux =',phi
         ! Summed over nodes
         do i = 1,size(phi(1,:))
             ! First find numerator and denominator
@@ -337,7 +336,6 @@ MODULE solver_class
         real(dp) :: deltax,deltay
         ! First find the new fission source produced by the flux from flux iterations
         f_rate_new=fission_reaction_rate_2d(groups,phi,regions2,in_mesh)
-        if (sum(phi)<50000.AND.sum(phi)>5000) print*,'f rate =',f_rate,'f rate new=',f_rate_new,'flux =',phi
         ! Summed over nodes
         do j=1,in_mesh%get_y_size()
             do i = 1,in_mesh%get_x_size()
@@ -346,9 +344,9 @@ MODULE solver_class
                 deltay=regions2(in_mesh%r(i,j))%get_delta(2)
                 ! First find numerator and denominator
                 ! New fission source
-                numerator=numerator+(deltax*(f_rate_new(index))*deltay)
+                numerator=numerator+(f_rate_new(index))
                 ! Previous iteration's fission source
-                denominator=denominator+(deltax*(f_rate(index))*deltay)
+                denominator=denominator+(f_rate(index))
             end do
         enddo
         ! print*,'numerator=',numerator,'denominator=',denominator,'phi=',phi
@@ -461,14 +459,19 @@ MODULE solver_class
             ! Loop for each box
             do j = 1, in_mesh%get_y_size()
                 do i = 1, in_mesh%get_x_size()
-                    index = in_mesh%index(i,j)
-                    r = in_mesh%r(i,j)
+                    index = in_mesh%index(i,j) ! Index for source
+                    r = in_mesh%r(i,j) ! Index for region
                     deltax = regions2(r)%get_delta(1)
                     deltay = regions2(r)%get_delta(2)
                     ! Loop for each group to sum the total scatter
                     do group_iterator = 1,groups ! group iterator -> g' and group -> g
                         ! If not in the same group then fine
-                        if (group_iterator /= group) source(index,group) = source(index,group)+((phi(index,group_iterator)*((regions2(r)%get_scatter(group_iterator,group))))*deltax*deltay)
+                        if (group_iterator /= group) then
+                            source(index,group) = source(index,group)+((phi(index,group_iterator)*((regions2(r)%get_scatter(group_iterator,group))))*deltax*deltay)
+                            ! print*,'box',i,j
+                            ! print*,'testing scatter',regions2(r)%get_scatter(group_iterator,group)
+
+                        endif
                     end do
                 enddo
             end do
@@ -780,7 +783,7 @@ MODULE solver_class
         phi_temp=1
     end subroutine allocate_2d
 
-    real(dp) function trapezoid_2d(f_rate,in_mesh,regions2)
+    real(dp) function trapezoid_2d(f_rate,in_mesh,regions2,keff)
         !
         ! Function to calculate 2d integral using trapezoid rule
         !
@@ -790,18 +793,17 @@ MODULE solver_class
         type(mesh),INTENT(IN) :: in_mesh
         integer :: i,j,index
         real(dp) :: deltax,deltay
+        real(dp),INTENT(IN) :: keff
         trapezoid_2d=0
         do j=1,in_mesh%get_y_size()
             do i=1,in_mesh%get_x_size()
                 index=in_mesh%index(i,j)
-                deltax=regions2(in_mesh%r(i,j))%get_delta(1)
-                deltay=regions2(in_mesh%r(i,j))%get_delta(2)
-                trapezoid_2d=trapezoid_2d+(f_rate(index)*deltax*deltay)
+                trapezoid_2d=trapezoid_2d+(f_rate(index)/keff)
             enddo
         enddo
     end function trapezoid_2d
 
-    real(dp) function normalise_2d(source_flux,f_rate,regions2,in_mesh)
+    real(dp) function normalise_2d(source_flux,f_rate,regions2,in_mesh,keff)
         !
         ! function to calculate normalisation
         !
@@ -809,10 +811,11 @@ MODULE solver_class
         real(dp),intent(in),allocatable,DIMENSION(:,:) :: source_flux
         type(region_2d),INTENT(IN),DIMENSION(:) :: regions2
         real(dp),INTENT(IN),DIMENSION(:) :: f_rate
+        real(dp),INTENT(IN) :: keff
         type(mesh),INTENT(IN) :: in_mesh
         ! If fission source
         if (.not.(allocated(source_flux))) then
-            normalise_2d=trapezoid_2d(f_rate,in_mesh,regions2)
+            normalise_2d=trapezoid_2d(f_rate,in_mesh,regions2,keff)
         ! If volumetric
         else
             normalise_2d=1_dp
