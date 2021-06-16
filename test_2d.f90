@@ -22,7 +22,7 @@ program test_2d
     type(error) :: error1
     type(mesh) :: in_mesh
     type(timer) :: t
-    type(vtk) :: vtk
+    type(vtk) :: vtk_out
     integer :: x_tracker=1
     real(dp), allocatable, dimension(:,:) :: source_flux
     real(dp), allocatable, dimension(:) :: gem_x ! Values of x used by gem
@@ -46,7 +46,7 @@ program test_2d
     ! Define file names
     !
     filename = 'input_deck_2D.dat'
-    vtkfile='test_2d.vtk'
+    vtkfile='vtk_test.vtk'
     ! gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
     ! London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
@@ -145,7 +145,7 @@ program test_2d
     !
     ! Output VTK file for ParaView
     !
-    if(allocated(regions2)) vtk%write_vtk(vtkfile,in_mesh, finite_phi,regions2)
+    if(allocated(regions2)) call vtk_out%write_vtk(vtkfile,in_mesh, finite_phi,regions2)
     !
     ! Timer
     !
