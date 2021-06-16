@@ -7,8 +7,9 @@ program test_2d
     use initialise_variables
     use solver_class
     use timer_class
+    use vtk_class
     implicit none
-    character(80) :: filename
+    character(80) :: filename,vtkfile
     type(region_1d), allocatable, dimension(:) :: regions
     type(region_2d),allocatable,DIMENSION(:) :: regions2
     type(line), target, allocatable, dimension(:) :: lines
@@ -21,6 +22,7 @@ program test_2d
     type(error) :: error1
     type(mesh) :: in_mesh
     type(timer) :: t
+    type(vtk) :: vtk
     integer :: x_tracker=1
     real(dp), allocatable, dimension(:,:) :: source_flux
     real(dp), allocatable, dimension(:) :: gem_x ! Values of x used by gem
@@ -44,6 +46,7 @@ program test_2d
     ! Define file names
     !
     filename = 'input_deck_2D.dat'
+    vtkfile='test_2d.vtk'
     ! gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
     ! London/PhD/Gem events/slab_1d_volum2.event/out/detect/slab_1d_volum2"
     gem_file = "/mnt/c/Users/scoga/OneDrive - Imperial College &
@@ -136,10 +139,13 @@ program test_2d
     close (70)
     ! do j=1,c_matrix_array(1)%get_rows()
     !     do i=1,c_matrix_array(1)%get_columns()
-    !         print*,'row',j,'column',i
-    !         print*,'test elements',c_matrix_array(1)%get_element(j,i)
+    !         print*,'row',j,'column',i,c_matrix_array(1)%get_element(j,i)
     !     enddo
     ! enddo
+    !
+    ! Output VTK file for ParaView
+    !
+    if(allocated(regions2)) vtk%write_vtk(vtkfile,in_mesh, finite_phi,regions2)
     !
     ! Timer
     !
