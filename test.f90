@@ -1,17 +1,46 @@
+subroutine incomplete_cholesky(a)
+    implicit none
+    real,DIMENSION(4,4),INTENT(INOUT) :: a
+    INTEGER :: n,k,i,j
+	n = size(a,1)
+	do k=1,n
+		a(k,k) = sqrt(a(k,k));
+		do i=(k+1),n
+		    if (a(i,k)/=0) a(i,k) = a(i,k)/a(k,k)
+        enddo
+		do j=(k+1),n
+		    do i=j,n
+		        if (a(i,j)/=0) a(i,j) = a(i,j)-a(i,k)*a(j,k)
+		    enddo
+		enddo
+	enddo
+
+    do i=1,n
+        do j=i+1,n
+            a(i,j) = 0
+        enddo
+    enddo            
+endsubroutine incomplete_cholesky
 program test
     implicit none
-    character(len=23) :: i,x,y,z
-    character(len=*),PARAMETER :: FMT = '(I0)'
-    character(len=*),PARAMETER :: FMT2 = '(ES21.15 E2)'
-    OPEN(12,file='testnewline.vtk')
-    write(12,'(A)') '# vtk DataFile Version 2.0'//NEW_LINE('A')//'A mesh'//NEW_LINE('A')//'ASCII'//NEW_LINE('A')//&
-    'DATASET UNSTRUCTURED_GRID'//NEW_LINE('A')
-    write(i,FMT) 720
-    write(x,FMT2) 12.3521
-    write(y,FMT2) 1.31e30
-    write(z,FMT2) 321.5
-    write(12,'(a)') 'POINTS '//adjustl(trim(i))//' double'
-    write(12,'(a)')
-    write(12,'(a)') adjustl(trim(x))//' '//adjustl(trim(y))//' '//adjustl(trim(z))
-    close(12) ! writes a blank line
+    INTEGER :: i,j
+    real :: t
+    real,DIMENSION(4,4) :: a
+    t=0.0
+    do i=1,4
+        do j=1,4
+            t=t+1.0
+            a(i,j)=3.0/t
+        enddo
+    enddo
+    a(4,3) = 0.0
+    print*,'matrix a'
+    do i=1,4
+        print*,a(i,:)
+    enddo
+    call incomplete_cholesky(a)
+    print*,'matrix L'
+    do i=1,4
+        print*,a(i,:)
+    enddo
 end program test

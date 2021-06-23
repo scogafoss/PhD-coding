@@ -1,5 +1,6 @@
 MODULE compressed_matrix_class
     use matrix_class
+    ! use timer_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: compressed_matrix_class.f90                                    !!
   !!                                                                           !!
@@ -12,6 +13,8 @@ MODULE compressed_matrix_class
   !!                                                                           !!
   !!  Revisions:                                                               !!
   !!    28/04/2021: Added to part of the matrix hierarchy                      !!
+  !!    17/06/2021: Added Jacobi preconditioner                                !!
+  !!    22/06/2021: Added Cholesky preconditioner                              !!
   !!                                                                           !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -36,6 +39,13 @@ MODULE compressed_matrix_class
   procedure,public :: get_rows => get_rows_fn ! Function to return number of rows
   procedure,public :: get_columns => get_columns_fn ! Function to return number of columns
   procedure,public :: print_all => print_all_sub ! prints the values, then columns, then rows.
+  procedure,public :: jacobi_solve => jacobi_solve_fn ! Performs a PCG solve
+  procedure,public :: print_matrix => print_matrix_sub ! Prints the matrix out
+  procedure,public :: forward_substitution => forward_substitution_fn ! Performs forward substitution on lower triangular matrix L
+  procedure,public :: backward_substitution => backward_substitution_fn ! Performs forward substitution on upper triangular matrix L^T, L is still input into the function
+  procedure,public :: calculate_z => calculate_z_fn ! Calculates z in matrix equation LL^Tz=r if L and r are known
+  procedure,public :: cholesky_solve => cholesky_solve_fn ! Performs incomplete cholesky PCG solve
+  procedure,public :: replace_element => replace_element_sub ! Replaces element of the matrix
   END TYPE compressed_matrix
   ! Restrict access to the actual procedure names
   PRIVATE :: set_variables_sub
@@ -48,6 +58,13 @@ MODULE compressed_matrix_class
   private :: get_rows_fn
   private :: get_columns_fn
   private :: print_all_sub
+  PRIVATE :: jacobi_solve_fn
+  PRIVATE :: print_matrix_sub
+  PRIVATE :: forward_substitution_fn
+  PRIVATE :: backward_substitution_fn
+  PRIVATE :: calculate_z_fn
+  PRIVATE :: cholesky_solve_fn
+  PRIVATE :: replace_element_sub
   ! Now add methods
   CONTAINS
 
@@ -110,15 +127,12 @@ END function vector_multiply_fn
     real(dp) :: convergence
     real(dp) :: alpha
     integer :: i,j
+    ! type(timer) :: time
+    !
+    ! Timer
+    !
+    ! call time%start_timer()
     ! Check matrix is compatable with CG method
-    !!!!!!!!!!!
-    ! do i=1,this%rows
-    !     do j=1,this%columns
-    !         print*,i,j,'=',this%get_element(i,j)
-    !     enddo
-    ! enddo
-    ! print*,source_flux
-    !!!!!!!!!!!
     if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
     do i=1,this%rows
         do j=1, this%columns
@@ -134,7 +148,7 @@ END function vector_multiply_fn
     rsold = dot_product(residual,residual)
     ! Loop
     do i=1,size(source_flux) ! Shouldn't have to loop more than the degrees of freedom
-        Ap = this%vector_multiply(basis_vector)
+        Ap = this%vector_multiply(basis_vector) ! A * p
         alpha = rsold / (dot_product(basis_vector,Ap))
         solution = solution + alpha * basis_vector
         residual = residual - alpha * Ap
@@ -147,6 +161,10 @@ END function vector_multiply_fn
         basis_vector = residual + (rsnew / rsold) * basis_vector
         rsold = rsnew
     end do
+    !
+    ! Timer
+    !
+    ! print*, 'Time to complete CG solve in seconds:', time%elapsed_time()
   end function solve_fn
 
   real (dp) function get_element_fn(this,row,column)
@@ -201,31 +219,62 @@ END function vector_multiply_fn
         this%row_index(row+1:this%rows+1)=2
     ! If already allocated
     else
-        if (this%get_element(row,column) /= 0) stop 'Requested row and column already filled by non-zero value.'
-        ! Add to size of stored arrays.
-        temp_values=this%values
-        temp_columns=this%column_index
-        deallocate(this%values)
-        deallocate(this%column_index)
-        allocate(this%values(1:size(temp_values)+1))
-        allocate(this%column_index(1:size(temp_columns)+1))
-        do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
-            if (column < this%column_index(i+this%row_index(row))) exit ! If here then the added value needs to go at this index and shift other values along.
-        end do
-        if (i==(this%row_index(row+1)-this%row_index(row))) i=i+1 ! Added value goes at the end of the row
-        this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))+1 ! Add one to the row index according to location of new value.
-        ! Populate the new column and value vectors
-        new_value_index=i+this%row_index(row)-1 ! Record position of new value
-        ! Shift columns
-        this%column_index(1:new_value_index-1)=temp_columns(1:new_value_index-1)
-        this%column_index(new_value_index)=column
-        this%column_index(new_value_index+1:size(this%column_index))=temp_columns(new_value_index:size(temp_columns))
-        ! Shift values
-        this%values(1:new_value_index-1)=temp_values(1:new_value_index-1)
-        this%values(new_value_index)=value
-        this%values(new_value_index+1:size(this%values))=temp_values(new_value_index:size(temp_values))
+        if (this%get_element(row,column) /= 0) then
+            call this%replace_element(value,row,column)
+        else
+            ! Add to size of stored arrays.
+            temp_values=this%values
+            temp_columns=this%column_index
+            deallocate(this%values)
+            deallocate(this%column_index)
+            allocate(this%values(1:size(temp_values)+1))
+            allocate(this%column_index(1:size(temp_columns)+1))
+            do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
+                if (column < this%column_index(i+this%row_index(row))) exit ! If here then the added value needs to go at this index and shift other values along.
+            end do
+            if (i==(this%row_index(row+1)-this%row_index(row))) i=i+1 ! Added value goes at the end of the row
+            this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))+1 ! Add one to the row index according to location of new value.
+            ! Populate the new column and value vectors
+            new_value_index=i+this%row_index(row)-1 ! Record position of new value
+            ! Shift columns
+            this%column_index(1:new_value_index-1)=temp_columns(1:new_value_index-1)
+            this%column_index(new_value_index)=column
+            this%column_index(new_value_index+1:size(this%column_index))=temp_columns(new_value_index:size(temp_columns))
+            ! Shift values
+            this%values(1:new_value_index-1)=temp_values(1:new_value_index-1)
+            this%values(new_value_index)=value
+            this%values(new_value_index+1:size(this%values))=temp_values(new_value_index:size(temp_values))
+        endif
     end if
   end subroutine add_element_sub
+
+  subroutine replace_element_sub(this,value,row,column)
+    !
+    ! Function to replace an element of the matrix.
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(inout) :: this ! Matrix object
+    real(dp),INTENT(IN) :: value
+    integer,INTENT(IN) :: row
+    integer,INTENT(IN) :: column
+    integer :: row_start
+    integer :: row_end
+    if(row>size(this%row_index)-1) stop 'Row requested is outside of allocated matrix.'
+    if(column>size(this%row_index)-1) stop 'Column requested is outside of allocated matrix.' ! I know the matrix will be square so this is correct still.
+    row_start = this%row_index(row)
+    row_end = this%row_index(row+1)
+    if (row_start==row_end) then ! No values in this row
+        print*,'No element to replace, adding value'
+        call this%add_element(value,row,column)
+    else if (find_location_integer(this%column_index(row_start:row_end-1),column)==0) then ! findloc(array,value) returns zero if value is not in array
+        ! There is no zero value here - so need add element.
+        print*,'No element to replace, adding value'
+        call this%add_element(value,row,column)
+    else
+        this%values(row_start+find_location_integer(this%column_index(row_start:row_end-1),column)-1) = value
+    end if
+  end subroutine replace_element_sub
 
   subroutine remove_element_sub(this,row,column)
     !
@@ -341,5 +390,244 @@ subroutine print_all_sub(this)
     print*,this%column_index
     print*,this%row_index
 end subroutine print_all_sub
+
+subroutine print_matrix_sub(this)
+    !
+    ! Sub to set size of matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),INTENT(INOUT) :: this
+    INTEGER :: i,j
+    real(dp),DIMENSION(this%rows,this%columns) :: temp
+    do i=1,this%get_rows()
+        do j=1,this%get_columns()
+            temp(i,j)=this%get_element(i,j)
+            ! print*,'row,col',i,j,this%get_element(i,j),temp(i,j)
+        enddo
+    enddo
+    do i=1,this%get_rows()
+        print*,temp(i,:)
+    enddo
+end subroutine print_matrix_sub
+
+function jacobi_solve_fn(this,source_flux) result(solution)
+    !
+    ! Function to return solution to Ax=B matrix equation for a square matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(in) :: this ! Matrix object
+    real(dp),INTENT(IN),DIMENSION(:) :: source_flux ! Source B in matrix equation
+    real(dp), dimension(size(source_flux)) :: solution ! x in matrix equation
+    real(dp),dimension(size(source_flux)) :: residual,z ! r in equation
+    real(dp) :: rsold ! r'r
+    real(dp) :: rsnew ! r'r
+    real(dp),dimension(size(source_flux)) :: Ap ! matrix * residual, useful constant
+    real(dp),dimension(size(source_flux)) :: basis_vector ! p in equation
+    real(dp) :: convergence
+    real(dp) :: alpha
+    integer :: i,j
+    type(compressed_matrix) :: preconditioner ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
+    ! type(timer) :: time
+    !
+    ! Timer
+    !
+    ! call time%start_timer()
+    ! Check matrix is compatable with CG method and set the preconditioner at the same time
+    call preconditioner%set_size(this%get_rows(),this%get_columns())
+    if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
+    do i=1,this%rows
+        ! Inverse of preconditioner is Pii = 1/Aii
+        call preconditioner%add_element((1/this%get_element(i,i)),i,i)
+        do j=1, this%columns
+            if(this%get_element(i,j)/=this%get_element(j,i)) stop 'Matrix must be symmetric for CG method.'
+        end do
+    end do
+    ! Initial values
+    convergence = 1e-8_dp
+    solution=0_dp
+    residual=0_dp ! r
+    residual = source_flux - this%vector_multiply(solution)
+    z=preconditioner%vector_multiply(residual)
+    basis_vector = z ! p
+    rsold = dot_product(residual,z) ! numerator in alpha
+    ! Loop
+    do i=1,size(source_flux) ! Shouldn't have to loop more than the degrees of freedom
+        Ap = this%vector_multiply(basis_vector) ! A * p
+        alpha = rsold / (dot_product(basis_vector,Ap))
+        solution = solution + alpha * basis_vector
+        residual = residual - alpha * Ap
+        if (sqrt(rsnew) < convergence) then
+            exit
+        elseif (i==size(source_flux)) then
+            print*,'CG convergence not met'
+        endif
+        z=preconditioner%vector_multiply(residual)
+        rsnew = dot_product(residual,z)
+        basis_vector = z + (rsnew / rsold) * basis_vector
+        rsold = rsnew
+    end do
+    !
+    ! Timer
+    !
+    ! print*, 'Time to complete Jacobi PCG solve in seconds:', time%elapsed_time()
+  end function jacobi_solve_fn
+
+  subroutine incomplete_cholesky(a,t)
+    !
+    ! Subroutine to perform incomplete cholesky factorisation
+    !
+    implicit none
+    type(compressed_matrix),INTENT(INOUT) :: a
+    type(compressed_matrix),INTENT(OUT) :: t
+    INTEGER :: n,k,i,j
+	n = a%get_columns()
+    call t%set_size(n,n)
+	do k=1,n
+		call t%add_element(sqrt(a%get_element(k,k)),k,k)
+		do i=(k+1),n
+		    if (a%get_element(i,k)/=0) call t%add_element(a%get_element(i,k)/t%get_element(k,k),i,k)
+        enddo
+		do j=(k+1),n
+		    do i=j,n
+		        if (a%get_element(i,j)/=0) call t%add_element(a%get_element(i,j)-t%get_element(i,k)*t%get_element(j,k),i,j)
+		    enddo
+		enddo
+	enddo
+    !test the matrix
+    print*,'testing cholesky factorisation'
+    call t%print_matrix()
+    print*,'the matrix was'
+    call a%print_matrix()
+    ! do i=1,a%get_rows()
+    !     do j=1,a%get_columns()
+    !         print*,'row,col',i,j,a%get_element(i,j)
+    !     enddo
+    ! enddo
+    stop 'testing'
+  end subroutine incomplete_cholesky
+
+  function forward_substitution_fn(this,b) result(x)
+    !
+    ! Function to perform forward substitution for Lx=b matrix equation, where L is as a lower triangle matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(in) :: this ! Matrix object
+    real(dp),INTENT(IN),DIMENSION(:) :: b ! b in matrix equation Lx=b
+    real(dp), dimension(size(b)) :: x ! x in matrix equation
+    integer :: i,j
+    real(dp) :: summation ! summation over the known terms of x
+    ! Check matrix is compatable with vector
+    if(this%get_columns() /= size(b)) stop 'Matrix must be same size as vector for forward substitution.'
+    if(this%get_element(1,2)/=0) stop 'Matrix must be lower triangular.'
+    summation = 0.0_dp
+    do i=1,this%get_rows()
+        x(i)=1.0_dp/this%get_element(i,i)
+        do j=1,i-1
+            summation = summation + (this%get_element(i,j)*x(j))
+        enddo
+        x(i)=x(i)*(b(i)-summation)
+    end do
+  end function forward_substitution_fn
+
+  function backward_substitution_fn(this,b) result(x)
+    !
+    ! Function to perform backward substitution for Ux=b matrix equation, where U is as a lower triangle matrix
+    ! Note any time accessing element of 'this' compressed matrix, need to swap the i and j since the transpose has not been stored
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(in) :: this ! Matrix object
+    real(dp),INTENT(IN),DIMENSION(:) :: b ! b in matrix equation Lx=b
+    real(dp), dimension(size(b)) :: x ! x in matrix equation
+    integer :: i,j,n
+    real(dp) :: summation ! summation over the known terms of x
+    ! Check matrix is compatable with vector
+    if(this%get_columns() /= size(b)) stop 'Matrix must be same size as vector for forward substitution.'
+    if(this%get_element(1,2)/=0) stop 'Matrix must be lower triangular.'
+    n=size(b)
+    summation = 0.0_dp
+    do i=1,this%get_rows()
+        x(n-i+1)=1.0_dp/this%get_element(n-i+1,n-i+1)
+        do j=1,i-1
+            summation = summation + (this%get_element(n-j+1,n-i+1)*x(j))
+        enddo
+        x(n-i+1)=x(n-i+1)*(b(n-i+1)-summation)
+    end do
+  end function backward_substitution_fn
+
+  function cholesky_solve_fn(this,source_flux) result(solution)
+    !
+    ! Function to return solution to Ax=B matrix equation for a square matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(inout) :: this ! Matrix object
+    real(dp),INTENT(IN),DIMENSION(:) :: source_flux ! Source B in matrix equation
+    real(dp), dimension(size(source_flux)) :: solution ! x in matrix equation
+    real(dp),dimension(size(source_flux)) :: residual,z ! r in equation
+    real(dp) :: rsold ! r'r
+    real(dp) :: rsnew ! r'r
+    real(dp),dimension(size(source_flux)) :: Ap ! matrix * residual, useful constant
+    real(dp),dimension(size(source_flux)) :: basis_vector ! p in equation
+    real(dp) :: convergence
+    real(dp) :: alpha
+    integer :: i,j
+    type(compressed_matrix) :: lower ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
+    ! Check matrix is compatable with CG method and set the preconditioner at the same time
+    if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
+    ! Initial values
+    convergence = 1e-8_dp
+    solution=0_dp
+    residual=0_dp ! r
+    residual = source_flux - this%vector_multiply(solution)
+    call incomplete_cholesky(this,lower)
+    z=lower%calculate_z(residual)
+    basis_vector = z ! p
+    rsold = dot_product(residual,z) ! numerator in alpha
+    ! Loop
+    do i=1,size(source_flux) ! Shouldn't have to loop more than the degrees of freedom
+        Ap = this%vector_multiply(basis_vector) ! A * p
+        alpha = rsold / (dot_product(basis_vector,Ap))
+        solution = solution + alpha * basis_vector
+        residual = residual - alpha * Ap
+        if (sqrt(rsnew) < convergence) then
+            exit
+        elseif (i==size(source_flux)) then
+            print*,'CG convergence not met'
+        endif
+        z=lower%calculate_z(residual)
+        rsnew = dot_product(residual,z)
+        basis_vector = z + (rsnew / rsold) * basis_vector
+        rsold = rsnew
+    end do
+    !
+    ! Timer
+    !
+    ! print*, 'Time to complete Jacobi PCG solve in seconds:', time%elapsed_time()
+  end function cholesky_solve_fn
+
+  function calculate_z_fn(this,r) result(z)
+    !
+    ! Function to return solution to LL^Tz=r matrix equation, where L is a lower triangular matrix
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(in) :: this ! Matrix object, L in the matrix equation
+    real(dp),INTENT(IN),DIMENSION(:) :: r
+    real(dp), dimension(size(r)) :: z
+    real(dp),dimension(size(r)) :: y ! temporary vector to find z
+    ! Check matrix is compatable with r
+    if(this%get_columns()/=size(r)) stop 'Matrix must have same number of columns as the size of residual vector'
+    ! Substitute to find z
+    ! LL^Tz=r
+    ! L^Tz=y
+    ! Ly=r
+    ! Use r to find y, then use y to find z
+    y = this%forward_substitution(r)
+    z = this%backward_substitution(y)
+  end function calculate_z_fn
 
   END MODULE compressed_matrix_class
