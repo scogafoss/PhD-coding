@@ -292,26 +292,28 @@ END function vector_multiply_fn
     ! Check within matrix
     if(row>this%rows) stop 'Row requested is outside of allocated matrix.'
     if(column>this%columns) stop 'Column requested is outside of allocated matrix.'
-    if (this%get_element(row,column)==0) stop 'No non-zero value present at requested coordinate.'
-    ! Add to size of stored arrays.
-    temp_values=this%values
-    temp_columns=this%column_index
-    deallocate(this%values)
-    deallocate(this%column_index)
-    allocate(this%values(1:size(temp_values)-1))
-    allocate(this%column_index(1:size(temp_columns)-1))
-    do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
-        if (temp_columns(i+this%row_index(row)-1)==column) exit ! This is the value to remove
-    end do
-    this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))-1 ! Remove one from row index according to location of new value.
-    ! Populate the new column and value vectors
-    old_value_index=i+this%row_index(row)-1 ! Record position of removed value
-    ! Shift columns
-    this%column_index(1:old_value_index-1)=temp_columns(1:old_value_index-1)
-    this%column_index(old_value_index:size(this%column_index))=temp_columns(old_value_index+1:size(temp_columns))
-    ! Shift values
-    this%values(1:old_value_index-1)=temp_values(1:old_value_index-1)
-    this%values(old_value_index:size(this%values))=temp_values(old_value_index+1:size(temp_values))
+    ! Only make a change if not a zero
+    if (this%get_element(row,column)/=0) then
+        ! Add to size of stored arrays.
+        temp_values=this%values
+        temp_columns=this%column_index
+        deallocate(this%values)
+        deallocate(this%column_index)
+        allocate(this%values(1:size(temp_values)-1))
+        allocate(this%column_index(1:size(temp_columns)-1))
+        do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
+            if (temp_columns(i+this%row_index(row)-1)==column) exit ! This is the value to remove
+        end do
+        this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))-1 ! Remove one from row index according to location of new value.
+        ! Populate the new column and value vectors
+        old_value_index=i+this%row_index(row)-1 ! Record position of removed value
+        ! Shift columns
+        this%column_index(1:old_value_index-1)=temp_columns(1:old_value_index-1)
+        this%column_index(old_value_index:size(this%column_index))=temp_columns(old_value_index+1:size(temp_columns))
+        ! Shift values
+        this%values(1:old_value_index-1)=temp_values(1:old_value_index-1)
+        this%values(old_value_index:size(this%values))=temp_values(old_value_index+1:size(temp_values))
+    endif
 end subroutine remove_element_sub
 
 integer function find_location_integer(integer_array,value)
@@ -397,9 +399,10 @@ subroutine print_matrix_sub(this)
     !
     implicit none
     ! Declare calling arguments
-    class(compressed_matrix),INTENT(INOUT) :: this
+    class(compressed_matrix),INTENT(IN) :: this
     INTEGER :: i,j
-    real(dp),DIMENSION(this%rows,this%columns) :: temp
+    real(dp),DIMENSION(:,:),allocatable :: temp
+    allocate(temp(this%get_rows(),this%get_columns()))
     do i=1,this%get_rows()
         do j=1,this%get_columns()
             temp(i,j)=this%get_element(i,j)
@@ -479,33 +482,39 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     ! Subroutine to perform incomplete cholesky factorisation
     !
     implicit none
-    type(compressed_matrix),INTENT(INOUT) :: a
+    type(compressed_matrix),INTENT(IN) :: a
     type(compressed_matrix),INTENT(OUT) :: t
     INTEGER :: n,k,i,j
 	n = a%get_columns()
-    call t%set_size(n,n)
+    t=a
+    ! call t%set_size(n,n)
 	do k=1,n
-		call t%add_element(sqrt(a%get_element(k,k)),k,k)
+		call t%add_element(sqrt(t%get_element(k,k)),k,k)
 		do i=(k+1),n
-		    if (a%get_element(i,k)/=0) call t%add_element(a%get_element(i,k)/t%get_element(k,k),i,k)
+		    if (t%get_element(i,k)/=0) call t%add_element(t%get_element(i,k)/t%get_element(k,k),i,k)
         enddo
 		do j=(k+1),n
 		    do i=j,n
-		        if (a%get_element(i,j)/=0) call t%add_element(a%get_element(i,j)-t%get_element(i,k)*t%get_element(j,k),i,j)
+		        if (t%get_element(i,j)/=0) call t%add_element(t%get_element(i,j)-t%get_element(i,k)*t%get_element(j,k),i,j)
 		    enddo
 		enddo
 	enddo
+    !Remove values for upper triangle
+    do i=1,n
+        do j=i+1,n
+            call t%remove_element(i,j)
+        enddo
+    enddo
     !test the matrix
-    print*,'testing cholesky factorisation'
-    call t%print_matrix()
-    print*,'the matrix was'
-    call a%print_matrix()
+    ! print*,'testing cholesky factorisation'
+    ! call t%print_matrix()
+    ! print*,'the matrix was'
+    ! call a%print_matrix()
     ! do i=1,a%get_rows()
     !     do j=1,a%get_columns()
     !         print*,'row,col',i,j,a%get_element(i,j)
     !     enddo
     ! enddo
-    stop 'testing'
   end subroutine incomplete_cholesky
 
   function forward_substitution_fn(this,b) result(x)
@@ -564,7 +573,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     !
     implicit none
     ! Declare calling arguments
-    class(compressed_matrix),intent(inout) :: this ! Matrix object
+    class(compressed_matrix),intent(in) :: this ! Matrix object
     real(dp),INTENT(IN),DIMENSION(:) :: source_flux ! Source B in matrix equation
     real(dp), dimension(size(source_flux)) :: solution ! x in matrix equation
     real(dp),dimension(size(source_flux)) :: residual,z ! r in equation
@@ -577,7 +586,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     integer :: i,j
     type(compressed_matrix) :: lower ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
     ! Check matrix is compatable with CG method and set the preconditioner at the same time
-    if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
+    if(this%get_rows() /= this%get_columns()) stop 'Matrix must be square for CG method.'
     ! Initial values
     convergence = 1e-8_dp
     solution=0_dp
