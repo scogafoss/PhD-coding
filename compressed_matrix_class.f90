@@ -46,6 +46,7 @@ MODULE compressed_matrix_class
   procedure,public :: calculate_z => calculate_z_fn ! Calculates z in matrix equation LL^Tz=r if L and r are known
   procedure,public :: cholesky_solve => cholesky_solve_fn ! Performs incomplete cholesky PCG solve
   procedure,public :: replace_element => replace_element_sub ! Replaces element of the matrix
+  procedure,public :: jocboi_preconditioner => jacobi_preconditioner_sub ! Allocates the jacobi preconditioner matrix (inverse of diagonal)
   END TYPE compressed_matrix
   ! Restrict access to the actual procedure names
   PRIVATE :: set_variables_sub
@@ -65,6 +66,7 @@ MODULE compressed_matrix_class
   PRIVATE :: calculate_z_fn
   PRIVATE :: cholesky_solve_fn
   PRIVATE :: replace_element_sub
+  PRIVATE :: jacobi_preconditioner_sub
   ! Now add methods
   CONTAINS
 
@@ -154,6 +156,7 @@ END function vector_multiply_fn
         residual = residual - alpha * Ap
         rsnew = dot_product(residual,residual)
         if (sqrt(rsnew) < convergence) then
+            print*,'iterations',i
             exit
         elseif (i==size(source_flux)) then
             print*,'CG convergence not met'
@@ -416,12 +419,12 @@ end subroutine print_matrix_sub
 
 function jacobi_solve_fn(this,source_flux) result(solution)
     !
-    ! Function to return solution to Ax=B matrix equation for a square matrix
+    ! Function to return solution to Ax=b matrix equation for a square matrix
     !
     implicit none
     ! Declare calling arguments
     class(compressed_matrix),intent(in) :: this ! Matrix object
-    real(dp),INTENT(IN),DIMENSION(:) :: source_flux ! Source B in matrix equation
+    real(dp),INTENT(IN),DIMENSION(:) :: source_flux ! Source b in matrix equation
     real(dp), dimension(size(source_flux)) :: solution ! x in matrix equation
     real(dp),dimension(size(source_flux)) :: residual,z ! r in equation
     real(dp) :: rsold ! r'r
@@ -432,21 +435,8 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     real(dp) :: alpha
     integer :: i,j
     type(compressed_matrix) :: preconditioner ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
-    ! type(timer) :: time
-    !
-    ! Timer
-    !
-    ! call time%start_timer()
     ! Check matrix is compatable with CG method and set the preconditioner at the same time
-    call preconditioner%set_size(this%get_rows(),this%get_columns())
-    if(this%rows /= this%columns) stop 'Matrix must be square for CG method.'
-    do i=1,this%rows
-        ! Inverse of preconditioner is Pii = 1/Aii
-        call preconditioner%add_element((1/this%get_element(i,i)),i,i)
-        do j=1, this%columns
-            if(this%get_element(i,j)/=this%get_element(j,i)) stop 'Matrix must be symmetric for CG method.'
-        end do
-    end do
+    call preconditioner%jocboi_preconditioner(this)
     ! Initial values
     convergence = 1e-8_dp
     solution=0_dp
@@ -461,13 +451,14 @@ function jacobi_solve_fn(this,source_flux) result(solution)
         alpha = rsold / (dot_product(basis_vector,Ap))
         solution = solution + alpha * basis_vector
         residual = residual - alpha * Ap
+        z=preconditioner%vector_multiply(residual)
+        rsnew = dot_product(residual,z)
         if (sqrt(rsnew) < convergence) then
+            print*,'iterations',i
             exit
         elseif (i==size(source_flux)) then
             print*,'CG convergence not met'
         endif
-        z=preconditioner%vector_multiply(residual)
-        rsnew = dot_product(residual,z)
         basis_vector = z + (rsnew / rsold) * basis_vector
         rsold = rsnew
     end do
@@ -531,14 +522,19 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     ! Check matrix is compatable with vector
     if(this%get_columns() /= size(b)) stop 'Matrix must be same size as vector for forward substitution.'
     if(this%get_element(1,2)/=0) stop 'Matrix must be lower triangular.'
-    summation = 0.0_dp
     do i=1,this%get_rows()
         x(i)=1.0_dp/this%get_element(i,i)
+        summation = 0.0_dp
         do j=1,i-1
             summation = summation + (this%get_element(i,j)*x(j))
         enddo
         x(i)=x(i)*(b(i)-summation)
     end do
+    ! ! Test matrix
+    ! call this%print_matrix()
+    ! print*,'b',b
+    ! print*,'x',x
+    ! stop 'testing'
   end function forward_substitution_fn
 
   function backward_substitution_fn(this,b) result(x)
@@ -557,14 +553,20 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     if(this%get_columns() /= size(b)) stop 'Matrix must be same size as vector for forward substitution.'
     if(this%get_element(1,2)/=0) stop 'Matrix must be lower triangular.'
     n=size(b)
-    summation = 0.0_dp
     do i=1,this%get_rows()
         x(n-i+1)=1.0_dp/this%get_element(n-i+1,n-i+1)
+        summation = 0.0_dp
         do j=1,i-1
-            summation = summation + (this%get_element(n-j+1,n-i+1)*x(j))
+            summation = summation + (this%get_element(n-j+1,n-i+1)*x(n-j+1))
+            ! print*,'n-j+1,n-i+1',n-j+1,n-i+1,this%get_element(n-j+1,n-i+1),x(n-j+1)
         enddo
         x(n-i+1)=x(n-i+1)*(b(n-i+1)-summation)
     end do
+    ! ! ! Test matrix
+    ! call this%print_matrix()
+    ! print*,'b',b
+    ! print*,'x',x
+    ! stop 'testing'
   end function backward_substitution_fn
 
   function cholesky_solve_fn(this,source_flux) result(solution)
@@ -602,13 +604,14 @@ function jacobi_solve_fn(this,source_flux) result(solution)
         alpha = rsold / (dot_product(basis_vector,Ap))
         solution = solution + alpha * basis_vector
         residual = residual - alpha * Ap
+        z=lower%calculate_z(residual)
+        rsnew = dot_product(residual,z)
         if (sqrt(rsnew) < convergence) then
+            print*,'iterations',i
             exit
         elseif (i==size(source_flux)) then
             print*,'CG convergence not met'
         endif
-        z=lower%calculate_z(residual)
-        rsnew = dot_product(residual,z)
         basis_vector = z + (rsnew / rsold) * basis_vector
         rsold = rsnew
     end do
@@ -638,5 +641,25 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     y = this%forward_substitution(r)
     z = this%backward_substitution(y)
   end function calculate_z_fn
+
+  subroutine jacobi_preconditioner_sub(this,cmatrix)
+    !
+    ! Sub to allocate jacobi preconditioner
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),INTENT(OUT) :: this
+    class(compressed_matrix),INTENT(IN) :: cmatrix
+    INTEGER :: i,j
+    call this%set_size(cmatrix%get_rows(),cmatrix%get_columns())
+    if(cmatrix%get_rows() /= cmatrix%get_columns()) stop 'Matrix must be square for CG method.'
+    do i=1,cmatrix%get_rows()
+        ! Inverse of preconditioner is Pii = 1/Aii
+        call this%add_element((1/cmatrix%get_element(i,i)),i,i)
+        do j=1, cmatrix%get_columns()
+            if(cmatrix%get_element(i,j)/=cmatrix%get_element(j,i)) stop 'Matrix must be symmetric for CG method.'
+        end do
+    end do
+end subroutine jacobi_preconditioner_sub
 
   END MODULE compressed_matrix_class
