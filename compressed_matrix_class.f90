@@ -207,7 +207,7 @@ END function vector_multiply_fn
     integer, INTENT(IN) :: column
     real(dp),dimension(size(this%values)) :: temp_values
     integer,dimension(size(this%values)) :: temp_columns
-    integer :: i
+    integer :: i,index
     integer :: new_value_index
     ! Check within matrix
     if(this%rows==0 .or. this%columns==0) stop 'Size of matrix not yet set'
@@ -233,9 +233,9 @@ END function vector_multiply_fn
             allocate(this%values(1:size(temp_values)+1))
             allocate(this%column_index(1:size(temp_columns)+1))
             do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
-                if (column < this%column_index(i+this%row_index(row))) exit ! If here then the added value needs to go at this index and shift other values along.
+                if (column < temp_columns(i+this%row_index(row)-1)) exit ! If here then the added value needs to go at this index and shift other values along.
             end do
-            if (i==(this%row_index(row+1)-this%row_index(row))) i=i+1 ! Added value goes at the end of the row
+            ! if (i==(this%row_index(row+1)-this%row_index(row)).and.i/=1) i=i+1 ! Added value goes at the end of the row
             this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))+1 ! Add one to the row index according to location of new value.
             ! Populate the new column and value vectors
             new_value_index=i+this%row_index(row)-1 ! Record position of new value
