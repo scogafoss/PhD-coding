@@ -46,7 +46,7 @@ MODULE compressed_matrix_class
   procedure,public :: calculate_z => calculate_z_fn ! Calculates z in matrix equation LL^Tz=r if L and r are known
   procedure,public :: cholesky_solve => cholesky_solve_fn ! Performs incomplete cholesky PCG solve
   procedure,public :: replace_element => replace_element_sub ! Replaces element of the matrix
-  procedure,public :: jocboi_preconditioner => jacobi_preconditioner_sub ! Allocates the jacobi preconditioner matrix (inverse of diagonal)
+  procedure,public :: jacboi_preconditioner => jacobi_preconditioner_sub ! Allocates the jacobi preconditioner matrix (inverse of diagonal)
   END TYPE compressed_matrix
   ! Restrict access to the actual procedure names
   PRIVATE :: set_variables_sub
@@ -436,7 +436,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     integer :: i,j
     type(compressed_matrix) :: preconditioner ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
     ! Check matrix is compatable with CG method and set the preconditioner at the same time
-    call preconditioner%jocboi_preconditioner(this)
+    call preconditioner%jacboi_preconditioner(this)
     ! Initial values
     convergence = 1e-8_dp
     solution=0_dp
@@ -569,7 +569,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     ! stop 'testing'
   end function backward_substitution_fn
 
-  function cholesky_solve_fn(this,source_flux) result(solution)
+  function cholesky_solve_fn(this,source_flux,lower) result(solution)
     !
     ! Function to return solution to Ax=B matrix equation for a square matrix
     !
@@ -586,7 +586,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     real(dp) :: convergence
     real(dp) :: alpha
     integer :: i,j
-    type(compressed_matrix) :: lower ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
+    type(compressed_matrix),INTENT(INOUT) :: lower ! The inverse of the preconditioner, the inverse of the diagonal of A in Ax=B
     ! Check matrix is compatable with CG method and set the preconditioner at the same time
     if(this%get_rows() /= this%get_columns()) stop 'Matrix must be square for CG method.'
     ! Initial values
@@ -594,7 +594,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     solution=0_dp
     residual=0_dp ! r
     residual = source_flux - this%vector_multiply(solution)
-    call incomplete_cholesky(this,lower)
+    if(lower%get_columns()==0)call incomplete_cholesky(this,lower) !Only allocate
     z=lower%calculate_z(residual)
     basis_vector = z ! p
     rsold = dot_product(residual,z) ! numerator in alpha

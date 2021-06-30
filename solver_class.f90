@@ -90,6 +90,7 @@ MODULE solver_class
         real(dp),INTENT(IN),allocatable,dimension(:,:) :: source_flux
         real(dp),allocatable,dimension(:) :: f_rate ! fission reaction ratesource
         integer :: max_iteration
+        type(compressed_matrix),DIMENSION(size(source_flux(1,:))) :: lower ! lower triangular compressed matrix for preconditioner matrices
         ! Max iteration
         max_iteration = 200
         ! Convergence condition
@@ -163,7 +164,7 @@ MODULE solver_class
             !
             do
                 if(present(regions))call this%fixed_source_iteration(groups,source_flux,total_steps,boundary_tracker,phi,phi_temp,regions,matrix_array,c_matrix)
-                if(present(regions2))call fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix)
+                if(present(regions2))call fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix,lower)
                 ! Now this iteration will continue until the fluxes converge
                 phi_iterations=phi_iterations+1
                 if(phi_iterations>max_iteration) stop 'Max flux iterations reached for volumetric source'
@@ -429,7 +430,7 @@ MODULE solver_class
         end do
     end subroutine fixed_source_iteration_sub
 
-    subroutine fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix)
+    subroutine fixed_source_iteration_2d(in_mesh,groups,source_flux,phi,phi_temp,regions2,c_matrix,lower)
         !
         ! Subroutine to perfrom flux iteration on fixed source
         !
@@ -447,6 +448,7 @@ MODULE solver_class
         integer,INTENT(IN) :: groups
         integer :: group_iterator,index,r
         real(dp) :: deltax,deltay
+        type(compressed_matrix),dimension(:),INTENT(INOUT) :: lower
         !
         ! Need to perform calculation for each energy group
         !
@@ -478,7 +480,7 @@ MODULE solver_class
             ! Now have the total source so can find the phi iteration for current group
             !
             phi_temp(:,group)=phi(:,group)
-            phi(:,group)=c_matrix(group)%cholesky_solve(source(:,group))
+            phi(:,group)=c_matrix(group)%cholesky_solve(source(:,group),lower(group))
             ! print*,'test S', source(:,group)
             ! This needs to be done for all of the groups, so loop here
         end do

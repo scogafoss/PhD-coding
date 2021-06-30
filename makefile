@@ -50,7 +50,7 @@ OBJS=			    	   precision_set.o \
 # Fortran Compiler options
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-FC_FLAGS    =           -fcheck=bounds -ffree-line-length-800 -O -pg -fimplicit-none -fbacktrace
+FC_FLAGS    =           -fcheck=bounds -ffree-line-length-800 -O -pg -g -fimplicit-none -fbacktrace
 #use O3 for optimising
 
 
