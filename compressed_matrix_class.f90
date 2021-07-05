@@ -47,6 +47,8 @@ MODULE compressed_matrix_class
   procedure,public :: cholesky_solve => cholesky_solve_fn ! Performs incomplete cholesky PCG solve
   procedure,public :: replace_element => replace_element_sub ! Replaces element of the matrix
   procedure,public :: jacboi_preconditioner => jacobi_preconditioner_sub ! Allocates the jacobi preconditioner matrix (inverse of diagonal)
+  procedure,public :: row_col_indices => row_col_indices_fn ! Returns the indices of a row's values
+  procedure,PUBLIC :: rows_with_column => rows_with_column_fn ! Returns rows which contain non zero value at specified row
   END TYPE compressed_matrix
   ! Restrict access to the actual procedure names
   PRIVATE :: set_variables_sub
@@ -67,6 +69,8 @@ MODULE compressed_matrix_class
   PRIVATE :: cholesky_solve_fn
   PRIVATE :: replace_element_sub
   PRIVATE :: jacobi_preconditioner_sub
+  PRIVATE :: row_col_indices_fn
+  PRIVATE :: rows_with_column_fn
   ! Now add methods
   CONTAINS
 
@@ -235,7 +239,7 @@ END function vector_multiply_fn
             do i = 1, (this%row_index(row+1)-this%row_index(row)) ! Loop over the number of points in this row
                 if (column < temp_columns(i+this%row_index(row)-1)) exit ! If here then the added value needs to go at this index and shift other values along.
             end do
-            ! if (i==(this%row_index(row+1)-this%row_index(row)).and.i/=1) i=i+1 ! Added value goes at the end of the row
+            ! Do loop adds 1 to i if do loop is finished.
             this%row_index(row+1:size(this%row_index))=this%row_index(row+1:size(this%row_index))+1 ! Add one to the row index according to location of new value.
             ! Populate the new column and value vectors
             new_value_index=i+this%row_index(row)-1 ! Record position of new value
@@ -322,18 +326,18 @@ end subroutine remove_element_sub
 integer function find_location_integer(integer_array,value)
     !
     ! Function to replace the findloc fortran function
+    ! Returns zero or the index of desired integer
     !
     implicit none
     ! Declare calling arguments
     integer,INTENT(IN),DIMENSION(:) :: integer_array
     integer,INTENT(IN) :: value
     integer :: i
+    find_location_integer=0
     do i = 1, size(integer_array)
         if(integer_array(i)==value) then
             find_location_integer=i
             exit
-        else if (i==size(integer_array)) then ! If here it has searched through whole array and not found value.
-            find_location_integer=0
         end if
     end do
 end function find_location_integer
@@ -473,39 +477,56 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     ! Subroutine to perform incomplete cholesky factorisation
     !
     implicit none
-    type(compressed_matrix),INTENT(IN) :: a
-    type(compressed_matrix),INTENT(OUT) :: t
+    type(compressed_matrix),INTENT(IN) :: a ! Old matrix
+    type(compressed_matrix),INTENT(OUT) :: t ! Lower triangular factorisation
     INTEGER :: n,k,i,j
+    INTEGER,ALLOCATABLE,DIMENSION(:) :: filled_rows
+    real(dp) :: sum
 	n = a%get_columns()
-    t=a
-    ! call t%set_size(n,n)
-	do k=1,n
-		call t%add_element(sqrt(t%get_element(k,k)),k,k)
-		do i=(k+1),n
-		    if (t%get_element(i,k)/=0) call t%add_element(t%get_element(i,k)/t%get_element(k,k),i,k)
-        enddo
-		do j=(k+1),n
-		    do i=j,n
-		        if (t%get_element(i,j)/=0) call t%add_element(t%get_element(i,j)-t%get_element(i,k)*t%get_element(j,k),i,j)
-		    enddo
-		enddo
-	enddo
-    !Remove values for upper triangle
+    call t%set_size(n,n)
+    !
+    ! Wikipedia method
+    !
+    ! t=a
+	! do k=1,n
+	! 	call t%add_element(sqrt(t%get_element(k,k)),k,k)
+	! 	do i=(k+1),n
+	! 	    if (t%get_element(i,k)/=0) call t%add_element(t%get_element(i,k)/t%get_element(k,k),i,k)
+    !     enddo
+	! 	do j=(k+1),n
+	! 	    do i=j,n
+	! 	        if (t%get_element(i,j)/=0) call t%add_element(t%get_element(i,j)-t%get_element(i,k)*t%get_element(j,k),i,j)
+	! 	    enddo
+	! 	enddo
+	! enddo
+    ! !Remove values for upper triangle
+    ! do i=1,n
+    !     do j=i+1,n
+    !         call t%remove_element(i,j)
+    !     enddo
+    ! enddo
+    !
+    ! Reduced method
+    !
     do i=1,n
-        do j=i+1,n
-            call t%remove_element(i,j)
+        sum=0
+        do k=1,i-1
+            sum = sum + (t%get_element(i,k))**2
+        enddo
+        call t%add_element(SQRT(a%get_element(i,i)-sum),i,i)
+        filled_rows=a%rows_with_column(i,i+1,n)
+        do j=1,size(filled_rows)
+            sum=0
+            do k=1,i-1
+                sum=sum+(t%get_element(i,k)*t%get_element(filled_rows(j),k))
+            enddo
+            call t%add_element(((1/t%get_element(i,i))*(a%get_element(filled_rows(j),i)-sum)),filled_rows(j),i)
         enddo
     enddo
     !test the matrix
     ! print*,'testing cholesky factorisation'
     ! call t%print_matrix()
-    ! print*,'the matrix was'
-    ! call a%print_matrix()
-    ! do i=1,a%get_rows()
-    !     do j=1,a%get_columns()
-    !         print*,'row,col',i,j,a%get_element(i,j)
-    !     enddo
-    ! enddo
+    ! stop 'testing'
   end subroutine incomplete_cholesky
 
   function forward_substitution_fn(this,b) result(x)
@@ -518,6 +539,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     real(dp),INTENT(IN),DIMENSION(:) :: b ! b in matrix equation Lx=b
     real(dp), dimension(size(b)) :: x ! x in matrix equation
     integer :: i,j
+    INTEGER,DIMENSION(:),ALLOCATABLE :: column_loop
     real(dp) :: summation ! summation over the known terms of x
     ! Check matrix is compatable with vector
     if(this%get_columns() /= size(b)) stop 'Matrix must be same size as vector for forward substitution.'
@@ -525,16 +547,22 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     do i=1,this%get_rows()
         x(i)=1.0_dp/this%get_element(i,i)
         summation = 0.0_dp
-        do j=1,i-1
-            summation = summation + (this%get_element(i,j)*x(j))
+        column_loop=this%row_col_indices(i,1,i-1) ! Column loop is a list of the non zero indices within values array from desired start column to end
+        do j=1,size(column_loop)
+            summation = summation + (this%get_element(i,column_loop(j))*x(column_loop(j)))
         enddo
         x(i)=x(i)*(b(i)-summation)
+        DEALLOCATE(column_loop)
     end do
-    ! ! Test matrix
-    ! call this%print_matrix()
-    ! print*,'b',b
-    ! print*,'x',x
-    ! stop 'testing'
+    ! do i=1,this%get_rows()
+    !     x(i)=1.0_dp/this%get_element(i,i)
+    !     summation = 0.0_dp
+    !     do j=1,i-1
+    !         summation = summation + (this%get_element(i,j)*x(j))
+    !         if(this%get_element(i,j)/=0) print*,'row',i,'column',j,this%get_element(i,j)
+    !     enddo
+    !     x(i)=x(i)*(b(i)-summation)
+    ! end do
   end function forward_substitution_fn
 
   function backward_substitution_fn(this,b) result(x)
@@ -548,6 +576,7 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     real(dp),INTENT(IN),DIMENSION(:) :: b ! b in matrix equation Lx=b
     real(dp), dimension(size(b)) :: x ! x in matrix equation
     integer :: i,j,n
+    INTEGER,DIMENSION(:),ALLOCATABLE :: column_loop
     real(dp) :: summation ! summation over the known terms of x
     ! Check matrix is compatable with vector
     if(this%get_columns() /= size(b)) stop 'Matrix must be same size as vector for forward substitution.'
@@ -556,17 +585,22 @@ function jacobi_solve_fn(this,source_flux) result(solution)
     do i=1,this%get_rows()
         x(n-i+1)=1.0_dp/this%get_element(n-i+1,n-i+1)
         summation = 0.0_dp
-        do j=1,i-1
-            summation = summation + (this%get_element(n-j+1,n-i+1)*x(n-j+1))
-            ! print*,'n-j+1,n-i+1',n-j+1,n-i+1,this%get_element(n-j+1,n-i+1),x(n-j+1)
+        column_loop=this%row_col_indices(i,1,i-1) ! Column loop is a list of the non zero indices within values array from desired start column to end
+        do j=1,size(column_loop)
+            summation = summation + (this%get_element(n-column_loop(j)+1,n-i+1)*x(n-column_loop(j)+1))
         enddo
         x(n-i+1)=x(n-i+1)*(b(n-i+1)-summation)
+        DEALLOCATE(column_loop)
     end do
-    ! ! ! Test matrix
-    ! call this%print_matrix()
-    ! print*,'b',b
-    ! print*,'x',x
-    ! stop 'testing'
+    ! do i=1,this%get_rows()
+    !     x(n-i+1)=1.0_dp/this%get_element(n-i+1,n-i+1)
+    !     summation = 0.0_dp
+    !     do j=1,i-1
+    !         summation = summation + (this%get_element(n-j+1,n-i+1)*x(n-j+1))
+    !         ! print*,'n-j+1,n-i+1',n-j+1,n-i+1,this%get_element(n-j+1,n-i+1),x(n-j+1)
+    !     enddo
+    !     x(n-i+1)=x(n-i+1)*(b(n-i+1)-summation)
+    ! end do
   end function backward_substitution_fn
 
   function cholesky_solve_fn(this,source_flux,lower) result(solution)
@@ -661,5 +695,71 @@ function jacobi_solve_fn(this,source_flux) result(solution)
         end do
     end do
 end subroutine jacobi_preconditioner_sub
+
+function row_col_indices_fn(this,row,start_col,end_col) result(indices)
+    !
+    ! Function to return columns where desired points are.
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(in) :: this ! Matrix object, L in the matrix equation
+    integer,INTENT(IN) :: row,start_col,end_col
+    INTEGER :: i,index
+    INTEGER,ALLOCATABLE,DIMENSION(:) :: indices,indices_temp
+    ! Check matrix is compatable
+    if((this%get_columns()<end_col).or.(this%get_columns()<start_col).or.(this%get_rows()<row)) stop 'Invalid input for row seach'
+    if (start_col<=end_col) then ! Nothing needs to be done if the end comes before the start
+         ! Allocate
+        allocate(indices_temp(1:this%row_index(row+1)-this%row_index(row)))
+        index=0
+        ! Loop
+        ! indices_temp=this%column_index(this%row_index(row):this%row_index(row+1)-1)
+        do i=this%row_index(row),this%row_index(row+1)-1
+            ! Only add to sum if the column is within range
+            if(this%column_index(i)>=start_col.and.this%column_index(i)<=end_col) then
+                index=index+1
+                indices_temp(index)=this%column_index(i)
+            ! Exit the loop once out of desired range
+            elseif(this%column_index(i)>end_col) then
+                exit
+            endif
+        enddo
+        indices=indices_temp(1:index)
+        DEALLOCATE(indices_temp)
+    else
+        allocate(indices(1:0))
+    endif
+  end function row_col_indices_fn
+
+  function rows_with_column_fn(this,col,start_row,end_row) result(indices)
+    !
+    ! Function to return columns where desired points are.
+    !
+    implicit none
+    ! Declare calling arguments
+    class(compressed_matrix),intent(in) :: this ! Matrix object, L in the matrix equation
+    integer,INTENT(IN) :: col,start_row,end_row
+    INTEGER :: i,index
+    INTEGER,ALLOCATABLE,DIMENSION(:) :: indices,indices_temp
+    ! Check matrix is compatable
+    if((this%get_rows()<end_row).or.(this%get_columns()<col)) stop 'Invalid input for column search'
+    if (start_row<=end_row.or.(this%get_rows()<start_row)) then ! Nothing needs to be done if the end comes before the start
+         ! Allocate
+        allocate(indices_temp(1:end_row-start_row+1))
+        index=0
+        ! Loop
+        do i=start_row,end_row
+            ! Only add if the column is filled
+            if(find_location_integer(this%column_index(this%row_index(i):this%row_index(i+1)-1),col)/=0) then
+                index=index+1
+                indices_temp(index)=i ! Adds the ith row as this contains the desired column.
+            endif
+        enddo
+        indices=indices_temp(1:index)
+        DEALLOCATE(indices_temp)
+    else
+        allocate(indices(1:0))
+    endif
+  end function rows_with_column_fn
 
   END MODULE compressed_matrix_class

@@ -142,10 +142,11 @@ program test_2d
     !         print*,'row',j,'column',i,c_matrix_array(1)%get_element(j,i)
     !     enddo
     ! enddo
-    print*,'testing'
-    call c_matrix_array(1)%print_matrix()
-    print*,'c matrix stored data'
-    call c_matrix_array(1)%print_all()
+    ! print*,'testing'
+    ! call c_matrix_array(1)%print_matrix()
+    ! print*,'c matrix stored data'
+    ! call c_matrix_array(1)%print_all()
+    ! print*,'indices',c_matrix_array(1)%row_col_indices(2,2,5)
     !
     ! Output VTK file for ParaView
     !

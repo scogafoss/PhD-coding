@@ -481,6 +481,7 @@ MODULE solver_class
             !
             phi_temp(:,group)=phi(:,group)
             phi(:,group)=c_matrix(group)%cholesky_solve(source(:,group),lower(group))
+            ! phi(:,group)=c_matrix(group)%solve(source(:,group))
             ! print*,'test S', source(:,group)
             ! This needs to be done for all of the groups, so loop here
         end do
