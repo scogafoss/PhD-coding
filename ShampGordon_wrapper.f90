@@ -1,6 +1,6 @@
 module ShampGordon_wrapper
     use ShampGordon_oli
-    use ode_store_class
+    ! use ode_store_class
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  Filename: ShampGordon_wrapper.f90                                        !!
   !!                                                                           !!
@@ -16,26 +16,26 @@ module ShampGordon_wrapper
   IMPLICIT NONE
   contains
   
-    subroutine wrapper(sub,ode,neqn, y, t, tout)
+    subroutine wrapper(sub,neqn, y, t, tout)
       !
       ! Subroutine for wrapper of ShampGordon ODE solver
       !
       implicit none
       external :: sub
-      type(ODEs) :: ode
-      integer :: neqn
+      integer,INTENT(IN) :: neqn
       integer :: iflag
       real(kind=8),INTENT(IN) :: t,tout
       real(kind=8) :: relerr,abserr
       real(kind=8),ALLOCATABLE,DIMENSION(:) :: work
       integer(kind=4),ALLOCATABLE,DIMENSION(:) :: iwork
       real(kind=8),INTENT(INOUT),DIMENSION(:) :: y
-      neqn = size(y)
+      ! neqn = size(y)
+      print*,'here'!,size(work)
       iflag=1
       relerr=1.0e-8_8
       abserr=1.0e-8_8
-      ALLOCATE(work(1:100+21*NEQN),iwork(5))
-      call shampODE ( sub, ode, neqn, y, t, tout, relerr, abserr, iflag, work, iwork )
+      ALLOCATE(work(1:100+21*NEQN),iwork(1:5))
+      call shampODE ( sub, neqn, y, t, tout, relerr, abserr, iflag, work, iwork )
       DEALLOCATE(work,iwork)
     end subroutine wrapper
   

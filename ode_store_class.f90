@@ -18,21 +18,20 @@ MODULE ode_store_class
   ! Instance variables.
   CONTAINS
   ! Bound procedures
-  PROCEDURE,PUBLIC :: lorenz => lorenz_sub ! Lorenz system of equations
+  ! PROCEDURE,PUBLIC :: lorenz => lorenz_sub ! Lorenz system of equations
   
   END TYPE odes
   ! Restrict access to the actual procedure names
-  PRIVATE :: lorenz_sub
+  ! PRIVATE :: lorenz_sub
   ! Now add methods
   CONTAINS
 
-  SUBROUTINE lorenz_sub(this,time,values,differentials)
+  SUBROUTINE lorenz_sub(time,values,differentials)
     !
     ! Subroutine containing the lorenz system of equations
     !
     IMPLICIT NONE
     ! Declare calling arguments
-    CLASS(odes) :: this ! ODEs object
     real(kind=8),INTENT(INOUT),dimension(3) :: differentials,values
     real(kind=8),INTENT(IN) :: time
     real(kind=8) :: sigma,rho,beta

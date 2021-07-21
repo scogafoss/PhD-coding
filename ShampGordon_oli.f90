@@ -5,12 +5,12 @@ module ShampGordon_oli
     ! use ODEContainer
     !use ConvolutionODE
     ! use AnalyticalDiffTODEs
-    use ode_store_class
+    ! use ode_store_class
     
     
     contains
     
-    subroutine shampODE ( f, ode, neqn, y, t, tout, relerr, abserr, iflag, work, iwork )
+    subroutine shampODE ( f, neqn, y, t, tout, relerr, abserr, iflag, work, iwork )
     
     !*****************************************************************************80
     !
@@ -145,7 +145,7 @@ module ShampGordon_oli
       implicit none
     
       !! MY EDIT TO THE SOLVER
-      CLASS(odes), INTENT( INOUT )                  ::    ode
+      ! CLASS(odes), INTENT( INOUT )                  ::    ode
     
     
     
@@ -196,7 +196,7 @@ module ShampGordon_oli
         nornd = ( iwork(2) /= -1 )
       end if
     
-      call de ( f, ode, neqn, y, t, tout, relerr, abserr, iflag, work(iyy), &
+      call de ( f, neqn, y, t, tout, relerr, abserr, iflag, work(iyy), &
         work(iwt), work(ip), work(iyp), work(iypout), work(iphi), &
         work(ialpha), work(ibeta), work(isig), work(iv), work(iw), work(ig), &
         phase1, work(ipsi), work(ix), work(ih), work(ihold), start, &
@@ -223,7 +223,7 @@ module ShampGordon_oli
     
       return
     end
-    subroutine de ( f, ode, neqn, y, t, tout, relerr, abserr, iflag, yy, wt, p, yp, &
+    subroutine de ( f, neqn, y, t, tout, relerr, abserr, iflag, yy, wt, p, yp, &
       ypout, phi, alpha, beta, sig, v, w, g, phase1, psi, x, h, hold, start, &
       told, delsgn, ns, nornd, k, kold, isnold )
     
@@ -359,7 +359,7 @@ module ShampGordon_oli
       implicit none
     
       !! MY EDIT TO THE ODE SOLVER
-      CLASS(odes), INTENT( INOUT )                  ::    ode
+      ! CLASS(odes), INTENT( INOUT )                  ::    ode
     
       integer ( kind = 4 ) neqn
     
@@ -537,7 +537,7 @@ module ShampGordon_oli
         h = sign ( min ( abs ( h ), abs ( tend - x ) ), h )
         wt(1:neqn) = releps * abs ( yy(1:neqn) ) + abseps
     
-        call step ( x, yy, f, ode, neqn, h, eps, wt, start, &
+        call step ( x, yy, f, neqn, h, eps, wt, start, &
           hold, k, kold, crash, phi, p, yp, psi, &
           alpha, beta, sig, v, w, g, phase1, ns, nornd )
     !
@@ -571,7 +571,7 @@ module ShampGordon_oli
     
       return
     end
-    subroutine step ( x, y, f, ode, neqn, h, eps, wt, start, hold, k, kold, crash, &
+    subroutine step ( x, y, f, neqn, h, eps, wt, start, hold, k, kold, crash, &
       phi, p, yp, psi, alpha, beta, sig, v, w, g, phase1, ns, nornd )
     
     !*****************************************************************************80
@@ -732,7 +732,7 @@ module ShampGordon_oli
       implicit none
     
       !! MY EDIT TO THE SOLVER GREG
-      CLASS(odes), INTENT( INOUT )                  ::    ode
+      ! CLASS(odes), INTENT( INOUT )                  ::    ode
     
       integer ( kind = 4 ) neqn
     
@@ -1400,5 +1400,5 @@ module ShampGordon_oli
       return
     end
     
-    end module ShampGordon_oliallocate
+    end module ShampGordon_oli
     
