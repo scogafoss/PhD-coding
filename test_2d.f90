@@ -145,7 +145,7 @@ program test_2d
     ! print*,'testing'
     ! call c_matrix_array(1)%print_matrix()
     ! print*,'c matrix stored data'
-    ! call c_matrix_array(1)%print_all()
+    call c_matrix_array(1)%print_all()
     ! print*,'indices',c_matrix_array(1)%row_col_indices(2,2,5)
     !
     ! Output VTK file for ParaView
